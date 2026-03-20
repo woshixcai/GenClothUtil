@@ -31,4 +31,22 @@ public class SysUser {
 
     @TableLogic
     private Integer isDeleted;
+
+    /** 所属店铺 ID */
+    private Long shopId;
+
+    /** 每日调用配额，-1 表示不限制 */
+    private Integer dailyQuota;
+
+    /** 今日已用次数 */
+    private Integer usedToday;
+
+    /** 配额计数日期（用于判断是否需要重置） */
+    private Date quotaDate;
+
+    /** 是否可查看成本：1=是，0=否 */
+    private Integer canSeeCost;
+
+    /** 累计使用 token 数 */
+    private Long totalTokenUsed;
 }

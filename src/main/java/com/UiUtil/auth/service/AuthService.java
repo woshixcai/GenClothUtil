@@ -80,10 +80,15 @@ public class AuthService {
 
     /** 将用户信息写入线程上下文（由拦截器调用） */
     public void setUserContext(Long userId, String username) {
+        SysUser user = userMapper.selectById(userId);
         UserContext.LoginUser loginUser = new UserContext.LoginUser();
         loginUser.setUserId(userId);
         loginUser.setUsername(username);
         loginUser.setPermissions(loadPermCodes(userId));
+        if (user != null) {
+            loginUser.setShopId(user.getShopId());
+            loginUser.setCanSeeCost(user.getCanSeeCost());
+        }
         UserContext.set(loginUser);
     }
 }
