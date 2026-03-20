@@ -161,9 +161,14 @@
     <!-- Loading -->
     <div class="loading-wrap hidden" id="loadingWrap">
       <div class="loading-card">
-        <div class="spinner"></div>
-        <p class="loading-title">AI 正在为你换装</p>
-        <p class="loading-sub">通常需要 10 ~ 30 秒，请稍等 ☕</p>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" id="progressFill" style="width:0%"></div>
+          </div>
+          <span class="progress-pct" id="progressPct">0%</span>
+        </div>
+        <p class="loading-title" id="loadingStep">正在压缩图片…</p>
+        <p class="loading-sub">通常需要 10 ~ 30 秒，可以先看看其他款式 ☕</p>
       </div>
     </div>
 

@@ -3,8 +3,10 @@ package com.UiUtil.auth.controller;
 import com.UiUtil.shared.annotation.RequirePermission;
 import com.UiUtil.auth.dto.LoginRequest;
 import com.UiUtil.auth.dto.LoginResponse;
+import com.UiUtil.shared.context.UserContext;
 import com.UiUtil.shared.result.ApiResult;
 import com.UiUtil.auth.service.AuthService;
+import com.UiUtil.auth.service.QuotaService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -15,6 +17,9 @@ public class AuthController {
 
     @Autowired
     private AuthService authService;
+
+    @Autowired
+    private QuotaService quotaService;
 
     /**
      * 登录接口，无需鉴权。
@@ -37,6 +42,22 @@ public class AuthController {
     @PostMapping("/logout")
     public ApiResult<Void> logout() {
         return ApiResult.ok();
+    }
+
+    /**
+     * 查询当前用户今日剩余生图次数。
+     * GET /auth/quota
+     * 返回：{ remaining: -1(不限) | 0~N }
+     */
+    @RequirePermission("image:recommend")
+    @GetMapping("/quota")
+    public ApiResult<java.util.Map<String, Object>> queryQuota() {
+        UserContext.LoginUser user = UserContext.current();
+        int remaining = quotaService.remainingToday(user.getUserId());
+        java.util.Map<String, Object> data = new java.util.HashMap<>();
+        data.put("remaining", remaining);
+        data.put("unlimited", remaining == -1);
+        return ApiResult.ok(data);
     }
 
     /**

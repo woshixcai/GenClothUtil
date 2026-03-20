@@ -16,6 +16,30 @@ public class TryonController {
     @Autowired TryonService tryonService;
     @Autowired FeedbackService feedbackService;
 
+    /** 提交换装任务，立即返回 taskId，无需等待生成完成 */
+    @RequirePermission("image:recommend")
+    @PostMapping("/submit")
+    public ApiResult<Map<String, Object>> submit(
+            @RequestParam(required = false) List<MultipartFile> clothesFiles,
+            @RequestParam(required = false) List<MultipartFile> referenceFiles,
+            @RequestParam(required = false) String style,
+            @RequestParam(required = false) String scene,
+            @RequestParam(required = false) String season) throws Exception {
+        Map<String, Object> result = tryonService.submitAsync(clothesFiles, referenceFiles, style, scene, season);
+        if (result.containsKey("error")) {
+            return ApiResult.fail((String) result.get("error"));
+        }
+        return ApiResult.ok(result);
+    }
+
+    /** 轮询换装结果，返回 status: pending / done / failed */
+    @RequirePermission("image:recommend")
+    @GetMapping("/result/{taskId}")
+    public ApiResult<Map<String, Object>> result(@PathVariable Long taskId) {
+        return ApiResult.ok(tryonService.getResult(taskId));
+    }
+
+    /** 保留旧接口兼容性（同步版，不推荐） */
     @RequirePermission("image:recommend")
     @PostMapping("/recommend")
     public ApiResult<Map<String, Object>> recommend(
@@ -23,8 +47,17 @@ public class TryonController {
             @RequestParam(required = false) List<MultipartFile> referenceFiles,
             @RequestParam(required = false) String style,
             @RequestParam(required = false) String scene,
-            @RequestParam(required = false) String season) {
-        return ApiResult.ok(tryonService.recommend(clothesFiles, referenceFiles, style, scene, season));
+            @RequestParam(required = false) String season) throws Exception {
+        // 复用 submit + 阻塞等待结果（最多 60s）
+        Map<String, Object> sub = tryonService.submitAsync(clothesFiles, referenceFiles, style, scene, season);
+        if (sub.containsKey("error")) return ApiResult.fail((String) sub.get("error"));
+        Long taskId = ((Number) sub.get("taskId")).longValue();
+        for (int i = 0; i < 30; i++) {
+            Thread.sleep(2000);
+            Map<String, Object> r = tryonService.getResult(taskId);
+            if (!"pending".equals(r.get("status"))) return ApiResult.ok(r);
+        }
+        return ApiResult.fail("生成超时，请稍后重试");
     }
 
     @RequirePermission("tryon:feedback")

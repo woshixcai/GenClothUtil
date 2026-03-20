@@ -9,6 +9,7 @@ import java.util.Date;
 public class SysShop {
     @TableId(type = IdType.AUTO)
     private Long id;
+    private String shopNo;    // 店铺编号，格式：SHOPyyyyMMddHHmmss+3位序号
     private String shopName;
     private Integer status;
     private Date createTime;

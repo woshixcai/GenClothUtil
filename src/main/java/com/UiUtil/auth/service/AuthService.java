@@ -62,6 +62,8 @@ public class AuthService {
         user.setUsername(username);
         user.setPassword(BCrypt.hashpw(rawPassword, BCrypt.gensalt()));
         user.setStatus(1);
+        user.setIsDeleted(0);
+        user.setDailyQuota(5);   // 非会员每天免费试用 5 次
         user.setCreateTime(new Date());
         user.setUpdateTime(new Date());
         userMapper.insert(user);

@@ -12,8 +12,8 @@
     .cat-tab.active { background:var(--accent,#c0876a); color:#fff; border-color:var(--accent,#c0876a); }
     .item-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; padding:0 16px 16px; }
     .item-card { background:var(--bg-card,#fff); border-radius:14px; overflow:hidden; border:1px solid var(--border,#eee); cursor:pointer; }
-    .item-img { width:100%; aspect-ratio:3/4; object-fit:cover; background:#f5f5f5; display:flex;align-items:center;justify-content:center;font-size:40px; }
-    .item-img img { width:100%; height:100%; object-fit:cover; }
+    .item-img { width:100%; aspect-ratio:3/4; background:#f5f5f5; display:flex;align-items:center;justify-content:center;font-size:40px; overflow:hidden; position:relative; }
+    .item-img img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
     .item-info { padding:10px 12px; }
     .item-name { font-size:13px; font-weight:600; color:var(--text-1,#222); margin-bottom:4px; white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
     .item-price { font-size:12px; color:var(--text-3,#999); }
@@ -21,6 +21,15 @@
     .item-cost { margin-left:6px; }
     .empty-tip { text-align:center; padding:60px 0; color:var(--text-3,#999); font-size:14px; }
     .loading-tip { text-align:center; padding:40px 0; color:var(--text-3,#999); font-size:14px; }
+    .item-card   { position: relative; }
+    .item-del-btn {
+      position: absolute; top: 6px; right: 6px;
+      width: 22px; height: 22px; border-radius: 50%;
+      background: rgba(0,0,0,.35); color: #fff;
+      font-size: 13px; line-height: 22px; text-align: center;
+      cursor: pointer; z-index: 2; user-select: none;
+    }
+    .item-del-btn:active { background: rgba(180,40,40,.8); }
   </style>
 </head>
 <body>
@@ -57,13 +66,26 @@
   <a class="bnav-item" href="index.html"><span class="bnav-icon">🏠</span><span class="bnav-label">换装</span></a>
   <a class="bnav-item active" href="inventory.html"><span class="bnav-icon">📦</span><span class="bnav-label">服装库</span></a>
   <a class="bnav-item bnav-add" href="add-item.html"><span class="bnav-icon">＋</span><span class="bnav-label">入库</span></a>
+  <a class="bnav-item" href="order.html"><span class="bnav-icon">🧾</span><span class="bnav-label">开单</span></a>
+  <a class="bnav-item" href="order-list.html"><span class="bnav-icon">📊</span><span class="bnav-label">订单</span></a>
 </nav>
 
 <script>
 const getToken = () => localStorage.getItem('sm_token') || '';
-const showToast = msg => {
+const getPerms = () => JSON.parse(localStorage.getItem('sm_perms') || '[]');
+
+// 管理导航显隐
+(function() {
+  const p = getPerms();
+  const nav = document.getElementById('adminNavItem');
+  if (nav && (p.includes('sys:manage') || p.includes('user:shop_manage'))) nav.style.display = '';
+})();
+const showToast = (msg, type = 'error') => {
+  const t    = document.getElementById('toast');
+  const icon = t.querySelector('.toast-icon');
   document.getElementById('toastMsg').textContent = msg;
-  const t = document.getElementById('toast');
+  t.classList.toggle('toast-ok', type === 'ok');
+  if (icon) icon.textContent = type === 'ok' ? '✓' : '⚠';
   t.classList.remove('hidden');
   setTimeout(() => t.classList.add('hidden'), 3000);
 };
@@ -97,13 +119,14 @@ function renderItems(items) {
     return;
   }
   grid.innerHTML = items.map(item => `
-    <div class="item-card" onclick="useForTryon('${item.id}')">
-      <div class="item-img">
+    <div class="item-card">
+      <div class="item-del-btn" onclick="confirmDelete(${item.id}, '${(item.itemName||'').replace(/'/g,'')}')" title="删除">×</div>
+      <div class="item-img" onclick="useForTryon('${item.id}')">
         ${item.mainImageUrl
           ? `<img src="${item.mainImageUrl}" alt="${item.itemName}" loading="lazy">`
           : '👗'}
       </div>
-      <div class="item-info">
+      <div class="item-info" onclick="useForTryon('${item.id}')">
         <div class="item-name">${item.itemName || '未命名商品'}</div>
         <div class="item-price">
           ${item.salePrice != null ? `<span class="item-sale">¥${item.salePrice}</span>` : ''}
@@ -117,6 +140,24 @@ function renderItems(items) {
 
 function useForTryon(itemId) {
   location.href = 'index.html?fromInventory=' + itemId;
+}
+
+async function confirmDelete(itemId, name) {
+  if (!confirm(`确定删除「${name || '该商品'}」？删除后不可恢复。`)) return;
+  try {
+    const res  = await fetch(`/inventory/items/${itemId}`, {
+      method: 'DELETE', headers: { 'Authorization': 'Bearer ' + getToken() }
+    });
+    const data = await res.json();
+    if (data.code === 200) {
+      showToast('已删除', 'ok');
+      loadItems(currentCat);
+    } else {
+      showToast(data.msg || '删除失败');
+    }
+  } catch(e) {
+    showToast('网络错误');
+  }
 }
 
 document.getElementById('catTabs').addEventListener('click', e => {

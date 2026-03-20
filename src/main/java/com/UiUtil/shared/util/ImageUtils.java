@@ -17,6 +17,9 @@ import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Base64;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.UUID;
 
 @Component
@@ -51,9 +54,6 @@ public class ImageUtils {
         return String.format("data:image/%s;base64,%s", contentType, base64Content);
     }
 
-    /**
-     * 普通File文件转MD5（32位小写）
-     */
     public static String fileToMd5(File file) throws IOException {
         if (file == null || !file.exists() || file.isDirectory()) {
             throw new IllegalArgumentException("文件不存在或不是有效文件");
@@ -61,9 +61,6 @@ public class ImageUtils {
         return DigestUtil.md5Hex(file);
     }
 
-    /**
-     * MultipartFile（上传文件）转MD5（适配接口上传场景）
-     */
     public static String multipartFileToMd5(MultipartFile multipartFile) throws IOException {
         if (multipartFile == null || multipartFile.isEmpty()) {
             throw new IllegalArgumentException("上传文件不能为空");
@@ -71,45 +68,147 @@ public class ImageUtils {
         return DigestUtil.md5Hex(multipartFile.getBytes());
     }
 
-    /**
-     * 上传MultipartFile到火山TOS对象存储
-     */
-    public String uploadFileToHuoShan(MultipartFile file) throws Exception {
-        String accessKey  = resolve("VOLC_TOS_ACCESS_KEY",  accessKeyConfig,  "TOS AccessKey（volc.tos.access-key）");
-        String secretKey  = resolve("VOLC_TOS_SECRET_KEY",  secretKeyConfig,  "TOS SecretKey（volc.tos.secret-key）");
-        String bucketName = resolve("VOLC_TOS_BUCKET_NAME", bucketNameConfig, "TOS 桶名（volc.tos.bucket-name）");
-        String endpoint   = resolveOptional("VOLC_TOS_ENDPOINT", endpointConfig);
-        String region     = resolveOptional("VOLC_TOS_REGION",   regionConfig);
+    // ────────────────────────────────────────────────────────────────────────
+    // 私有工具方法：构建 TOS 客户端、获取桶名
+    // ────────────────────────────────────────────────────────────────────────
 
-        TOSClientConfiguration configuration = TOSClientConfiguration.builder()
-                .region(region)
-                .endpoint(endpoint)
+    private TOSV2 buildClient() {
+        String accessKey = resolve("VOLC_TOS_ACCESS_KEY", accessKeyConfig, "TOS AccessKey（volc.tos.access-key）");
+        String secretKey = resolve("VOLC_TOS_SECRET_KEY", secretKeyConfig, "TOS SecretKey（volc.tos.secret-key）");
+        String endpoint  = resolveOptional("VOLC_TOS_ENDPOINT", endpointConfig);
+        String region    = resolveOptional("VOLC_TOS_REGION",   regionConfig);
+        TOSClientConfiguration cfg = TOSClientConfiguration.builder()
+                .region(region).endpoint(endpoint)
                 .credentials(new StaticCredentials(accessKey, secretKey))
                 .build();
+        return new TOSV2ClientBuilder().build(cfg);
+    }
 
-        TOSV2 client = new TOSV2ClientBuilder().build(configuration);
+    private String resolveBucket() {
+        return resolve("VOLC_TOS_BUCKET_NAME", bucketNameConfig, "TOS 桶名（volc.tos.bucket-name）");
+    }
 
+    /**
+     * 把“对象 Key / 已签名 URL / 可能已过期的预签名 URL”统一转换成可长期访问的公开 URL。
+     * 前提：Bucket 已开启公开读。
+     *
+     * @param urlOrKey 例如：
+     *                  1) uuid.jpg
+     *                  2) https://bucket.endpoint/uuid.jpg?X-Algorithm=...
+     */
+    public String toPublicUrl(String urlOrKey) {
+        if (urlOrKey == null) return null;
+        String s = urlOrKey.trim();
+        if (s.isEmpty()) return null;
+
+        // URL：去掉查询参数（签名过期/失效不再影响）
+        if (s.startsWith("http://") || s.startsWith("https://")) {
+            int q = s.indexOf('?');
+            return q >= 0 ? s.substring(0, q) : s;
+        }
+        // Key：按公开域名拼出 URL
+        return buildPublicUrlFromKey(s);
+    }
+
+    private String buildPublicUrlFromKey(String objectKey) {
+        String bucketName = resolveBucket();
+        String endpointResolved = resolveOptional("VOLC_TOS_ENDPOINT", endpointConfig);
+
+        String scheme = "https";
+        String hostPart = endpointResolved;
+        if (endpointResolved != null && endpointResolved.startsWith("http://")) {
+            scheme = "http";
+            hostPart = endpointResolved.substring(7);
+        } else if (endpointResolved != null && endpointResolved.startsWith("https://")) {
+            scheme = "https";
+            hostPart = endpointResolved.substring(8);
+        }
+        if (hostPart == null || hostPart.trim().isEmpty()) {
+            throw new RuntimeException("缺少 TOS endpoint 配置（volc.tos.endpoint / VOLC_TOS_ENDPOINT）");
+        }
+        return scheme + "://" + bucketName + "." + hostPart + "/" + objectKey;
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // 上传方法：返回可长期访问的公开 URL（无需预签名）
+    // ────────────────────────────────────────────────────────────────────────
+
+    public String uploadBytesToHuoShan(byte[] bytes, String originalFilename) throws Exception {
+        String bucketName = resolveBucket();
+        TOSV2 client = buildClient();
+        try {
+            String suffix = (originalFilename != null && originalFilename.contains("."))
+                    ? originalFilename.substring(originalFilename.lastIndexOf(".")) : ".jpg";
+            String objectKey = UUID.randomUUID() + suffix;
+            PutObjectInput input = new PutObjectInput()
+                    .setBucket(bucketName).setKey(objectKey)
+                    .setContent(new ByteArrayInputStream(bytes));
+            client.putObject(input);
+            // 用 SDK 生成一次“带签名 URL”，再去掉查询串（确保域名/路径格式与 TOS 一致）
+            String signedUrl = client.preSignedURL(HttpMethod.GET, bucketName, objectKey, Duration.ofHours(presignHours));
+            int q = signedUrl.indexOf('?');
+            return q >= 0 ? signedUrl.substring(0, q) : signedUrl;
+        } finally {
+            client.close();
+        }
+    }
+
+    public String uploadFileToHuoShan(MultipartFile file) throws Exception {
+        String bucketName = resolveBucket();
+        TOSV2 client = buildClient();
         try {
             String originalFilename = file.getOriginalFilename();
             String suffix = (originalFilename != null && originalFilename.contains("."))
-                    ? originalFilename.substring(originalFilename.lastIndexOf("."))
-                    : ".jpg";
-            String fileName = UUID.randomUUID().toString() + suffix;
-
+                    ? originalFilename.substring(originalFilename.lastIndexOf(".")) : ".jpg";
+            String objectKey = UUID.randomUUID() + suffix;
             PutObjectInput input = new PutObjectInput()
-                    .setBucket(bucketName)
-                    .setKey(fileName)
+                    .setBucket(bucketName).setKey(objectKey)
                     .setContent(new ByteArrayInputStream(file.getBytes()));
-
-            PutObjectOutput output = client.putObject(input);
-            String preSignedUrl = client.preSignedURL(HttpMethod.GET, bucketName, fileName, Duration.ofHours(presignHours));
-
-            System.out.println("TOS 上传成功：" + preSignedUrl);
-            return preSignedUrl;
+            client.putObject(input);
+            String signedUrl = client.preSignedURL(HttpMethod.GET, bucketName, objectKey, Duration.ofHours(presignHours));
+            int q = signedUrl.indexOf('?');
+            return q >= 0 ? signedUrl.substring(0, q) : signedUrl;
         } finally {
-            if (client != null) {
-                client.close();
+            client.close();
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // 预签名：将 Key 批量转换为有效期内的访问 URL（只建一次 TOS 客户端）
+    // ────────────────────────────────────────────────────────────────────────
+
+    /**
+     * 批量生成预签名 URL，复用同一个 TOS 客户端，避免 N+1 建连开销。
+     *
+     * @param objectKeys TOS 对象 Key 集合（非 http 开头的字符串）
+     * @return Key → 预签名 URL 的映射
+     */
+    public Map<String, String> preSignObjectKeys(Collection<String> objectKeys) throws Exception {
+        Map<String, String> result = new LinkedHashMap<>();
+        if (objectKeys == null || objectKeys.isEmpty()) return result;
+        String bucketName = resolveBucket();
+        TOSV2 client = buildClient();
+        try {
+            for (String key : objectKeys) {
+                result.put(key, client.preSignedURL(HttpMethod.GET, bucketName, key,
+                        Duration.ofHours(presignHours)));
             }
+        } finally {
+            client.close();
+        }
+        return result;
+    }
+
+    /**
+     * 单个 Key 生成预签名 URL（供 try-on 缓存场景使用）。
+     */
+    public String preSignObjectKey(String objectKey) throws Exception {
+        String bucketName = resolveBucket();
+        TOSV2 client = buildClient();
+        try {
+            return client.preSignedURL(HttpMethod.GET, bucketName, objectKey, Duration.ofHours(presignHours));
+        } finally {
+            client.close();
         }
     }
 

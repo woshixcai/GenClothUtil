@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="gentle-luxury">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#FDFAF7">
+  <title>StyleMe · 管理中心</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ── Header ─────────────────────────────── -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-mark">✦</span>
+        <span class="logo-name">StyleMe</span>
+        <span class="logo-tag">管理中心</span>
+      </div>
+      <div class="header-right">
+        <div class="auth-wrap">
+          <div class="user-chip" id="userChip">
+            <span class="user-avatar" id="userAvatar">A</span>
+            <span class="user-name" id="userName"></span>
+            <span class="role-badge" id="roleBadge"></span>
+            <button class="btn-logout" id="logoutBtn">退出</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Main ───────────────────────────────── -->
+  <main class="admin-main">
+
+    <!-- 权限不足提示（未登录 / 无管理权限） -->
+    <div class="admin-no-perm hidden" id="noPermBlock">
+      <div class="no-perm-icon">🔒</div>
+      <p class="no-perm-title">无访问权限</p>
+      <p class="no-perm-sub">请使用管理员账号登录后访问</p>
+      <a href="index.html" class="btn-gen" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;margin-top:12px">
+        <span class="btn-gen-star">✦</span>返回首页
+      </a>
+    </div>
+
+    <!-- ── Tab 栏 ─────────────────────────────── -->
+    <div class="admin-tabs hidden" id="adminTabs">
+      <!-- 超管专属 -->
+      <button class="adm-tab super-only hidden" id="tabShops"   data-tab="shops">🏪 店铺管理</button>
+      <button class="adm-tab super-only hidden" id="tabUsage"   data-tab="usage">📊 用量统计</button>
+      <!-- 店管 / 超管均可见 -->
+      <button class="adm-tab" id="tabUsers" data-tab="users">👥 子账号</button>
+    </div>
+
+    <!-- ── 面板：店铺管理（超管） ──────────────── -->
+    <section class="adm-panel hidden super-only" id="panelShops">
+
+      <!-- 开通店铺管理员 -->
+      <div class="adm-card">
+        <div class="adm-card-head">
+          <span class="adm-card-title">开通店铺管理员</span>
+          <button class="btn-mini" id="toggleCreateShopAdmin">＋ 新增</button>
+        </div>
+        <form class="adm-form hidden" id="formCreateShopAdmin">
+          <div class="adm-fields">
+            <div class="field">
+              <label class="field-label">登录账号 *</label>
+              <input class="field-input" type="text" id="saUsername" placeholder="账号（英文/数字）">
+            </div>
+            <div class="field">
+              <label class="field-label">初始密码 *</label>
+              <input class="field-input" type="password" id="saPassword" placeholder="至少6位">
+            </div>
+            <div class="field">
+              <label class="field-label">店铺名称</label>
+              <input class="field-input" type="text" id="saShopName" placeholder="留空则自动命名">
+            </div>
+            <div class="field">
+              <label class="field-label">每日生图上限</label>
+              <input class="field-input" type="number" id="saDailyQuota" value="-1" placeholder="-1 不限制">
+            </div>
+            <div class="field adm-check-field">
+              <label class="field-label">可查看进价</label>
+              <label class="adm-switch">
+                <input type="checkbox" id="saCanSeeCost" checked>
+                <span class="adm-switch-track"></span>
+              </label>
+            </div>
+          </div>
+          <p class="adm-form-err hidden" id="errCreateShopAdmin"></p>
+          <button type="submit" class="btn-gen adm-submit">
+            <span class="btn-gen-star">✦</span><span id="saSubmitText">确认开通</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- 店铺列表 -->
+      <div class="adm-card">
+        <div class="adm-card-head">
+          <span class="adm-card-title">所有店铺</span>
+          <button class="btn-mini" id="refreshShops">刷新</button>
+        </div>
+        <div class="adm-table-wrap">
+          <table class="adm-table" id="shopTable">
+            <thead>
+              <tr><th>店铺编号</th><th>店铺名称</th><th>状态</th></tr>
+            </thead>
+            <tbody id="shopTbody">
+              <tr><td colspan="3" class="adm-empty">加载中…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 面板：用量统计（超管） ──────────────── -->
+    <section class="adm-panel hidden super-only" id="panelUsage">
+      <div class="adm-card">
+        <div class="adm-card-head">
+          <span class="adm-card-title">店铺用量汇总</span>
+          <button class="btn-mini" id="refreshUsage">刷新</button>
+        </div>
+        <div class="adm-table-wrap">
+          <table class="adm-table" id="usageShopTable">
+            <thead>
+              <tr><th>店铺ID</th><th>累计Token</th><th>操作</th></tr>
+            </thead>
+            <tbody id="usageShopTbody">
+              <tr><td colspan="3" class="adm-empty">加载中…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <!-- 二级：按用户展开 -->
+      <div class="adm-card hidden" id="usageUserCard">
+        <div class="adm-card-head">
+          <span class="adm-card-title" id="usageUserTitle">用户明细</span>
+          <button class="btn-mini" id="closeUsageUser">收起</button>
+        </div>
+        <div class="adm-table-wrap">
+          <table class="adm-table">
+            <thead>
+              <tr><th>用户ID</th><th>用户名</th><th>累计Token</th></tr>
+            </thead>
+            <tbody id="usageUserTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 面板：子账号管理（店管 / 超管） ──────── -->
+    <section class="adm-panel hidden" id="panelUsers">
+
+      <!-- 新增子账号 -->
+      <div class="adm-card">
+        <div class="adm-card-head">
+          <span class="adm-card-title">新增子账号</span>
+          <button class="btn-mini" id="toggleCreateUser">＋ 新增</button>
+        </div>
+        <form class="adm-form hidden" id="formCreateUser">
+          <div class="adm-fields">
+            <div class="field">
+              <label class="field-label">登录账号 *</label>
+              <input class="field-input" type="text" id="cuUsername" placeholder="账号（英文/数字）">
+            </div>
+            <div class="field">
+              <label class="field-label">初始密码 *</label>
+              <input class="field-input" type="password" id="cuPassword" placeholder="至少6位">
+            </div>
+            <div class="field">
+              <label class="field-label">每日生图上限</label>
+              <input class="field-input" type="number" id="cuDailyQuota" value="-1" placeholder="-1 不限制">
+            </div>
+            <div class="field adm-check-field">
+              <label class="field-label">可查看进价</label>
+              <label class="adm-switch">
+                <input type="checkbox" id="cuCanSeeCost">
+                <span class="adm-switch-track"></span>
+              </label>
+            </div>
+            <div class="field adm-check-field">
+              <label class="field-label">可使用 AI 生图</label>
+              <label class="adm-switch">
+                <input type="checkbox" id="cuCanUseAi" checked>
+                <span class="adm-switch-track"></span>
+              </label>
+            </div>
+          </div>
+          <p class="adm-form-err hidden" id="errCreateUser"></p>
+          <button type="submit" class="btn-gen adm-submit">
+            <span class="btn-gen-star">✦</span><span id="cuSubmitText">确认新增</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- 子账号列表 -->
+      <div class="adm-card">
+        <div class="adm-card-head">
+          <span class="adm-card-title">本店子账号</span>
+          <button class="btn-mini" id="refreshUsers">刷新</button>
+        </div>
+        <div class="adm-table-wrap">
+          <table class="adm-table" id="userTable">
+            <thead>
+              <tr><th>账号</th><th>每日上限</th><th>可看进价</th><th>AI生图</th><th>操作</th></tr>
+            </thead>
+            <tbody id="userTbody">
+              <tr><td colspan="5" class="adm-empty">加载中…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Toast -->
+    <div class="toast hidden" id="toast">
+      <span class="toast-icon">⚠</span>
+      <span id="toastMsg"></span>
+    </div>
+
+    <!-- 编辑用户弹层 -->
+    <div class="modal-bg hidden" id="editUserModal">
+      <div class="modal" style="max-width:360px">
+        <button class="modal-x" id="editModalX">×</button>
+        <div class="modal-top">
+          <div class="modal-icon">👤</div>
+          <h2 class="modal-title" id="editModalTitle">编辑子账号</h2>
+        </div>
+        <form id="editUserForm">
+          <div class="field">
+            <label class="field-label">每日生图上限（-1 不限）</label>
+            <input class="field-input" type="number" id="editQuota">
+          </div>
+          <div class="field adm-check-field">
+            <label class="field-label">可查看进价</label>
+            <label class="adm-switch">
+              <input type="checkbox" id="editCanSeeCost">
+              <span class="adm-switch-track"></span>
+            </label>
+          </div>
+          <div class="field adm-check-field">
+            <label class="field-label">可使用 AI 生图</label>
+            <label class="adm-switch">
+              <input type="checkbox" id="editCanUseAi">
+              <span class="adm-switch-track"></span>
+            </label>
+          </div>
+          <p class="adm-form-err hidden" id="errEditUser"></p>
+          <button type="submit" class="btn-gen" style="width:100%;margin-top:8px">
+            <span class="btn-gen-star">✦</span><span id="editSubmitText">保存修改</span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ── 底部导航 ────────────────────────────── -->
+  <nav class="bottom-nav" id="bottomNav">
+    <a class="bnav-item" href="index.html" data-page="home">
+      <span class="bnav-icon">🏠</span>
+      <span class="bnav-label">换装</span>
+    </a>
+    <a class="bnav-item" href="inventory.html" data-page="inventory">
+      <span class="bnav-icon">📦</span>
+      <span class="bnav-label">服装库</span>
+    </a>
+    <a class="bnav-item bnav-add" href="add-item.html" data-page="add">
+      <span class="bnav-icon">＋</span>
+      <span class="bnav-label">入库</span>
+    </a>
+    <a class="bnav-item active" href="admin.html" data-page="admin">
+      <span class="bnav-icon">⚙️</span>
+      <span class="bnav-label">管理</span>
+    </a>
+  </nav>
+
+<script>
+/* ================================================================
+   admin.js — 内嵌脚本，管理中心逻辑
+   ================================================================ */
+
+const token       = localStorage.getItem('sm_token')    || '';
+const username    = localStorage.getItem('sm_username') || '';
+const permissions = JSON.parse(localStorage.getItem('sm_perms') || '[]');
+
+const isSuperAdmin = permissions.includes('sys:manage');
+const isShopAdmin  = permissions.includes('user:shop_manage');
+const canManage    = isSuperAdmin || isShopAdmin;
+
+/* ── 初始化 ───────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  if (!token || !canManage) {
+    document.getElementById('noPermBlock').classList.remove('hidden');
+    return;
+  }
+
+  // 渲染用户信息
+  document.getElementById('userName').textContent   = username;
+  document.getElementById('userAvatar').textContent = username.charAt(0).toUpperCase();
+  document.getElementById('roleBadge').textContent  = isSuperAdmin ? '超级管理员' : '店铺管理员';
+
+  document.getElementById('logoutBtn').addEventListener('click', doLogout);
+
+  // 显示 Tab 栏
+  const tabsEl = document.getElementById('adminTabs');
+  tabsEl.classList.remove('hidden');
+
+  if (isSuperAdmin) {
+    document.querySelectorAll('.super-only').forEach(el => el.classList.remove('hidden'));
+  }
+
+  // Tab 切换事件
+  document.querySelectorAll('.adm-tab').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  });
+
+  // 默认激活的 Tab
+  switchTab(isSuperAdmin ? 'shops' : 'users');
+
+  // 初始化各面板
+  initShopsPanel();
+  initUsagePanel();
+  initUsersPanel();
+});
+
+function switchTab(name) {
+  document.querySelectorAll('.adm-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('.adm-panel').forEach(p => p.classList.add('hidden'));
+  const panel = document.getElementById('panel' + name.charAt(0).toUpperCase() + name.slice(1));
+  if (panel) panel.classList.remove('hidden');
+
+  // 懒加载数据
+  if (name === 'shops')  loadShops();
+  if (name === 'usage')  loadUsageByShop();
+  if (name === 'users')  loadUsers();
+}
+
+/* ── 通用请求 ─────────────────────────────────── */
+async function api(method, url, params) {
+  const opts = {
+    method,
+    headers: { 'Authorization': 'Bearer ' + token },
+  };
+  let fullUrl = url;
+  if (method === 'GET' && params) {
+    fullUrl += '?' + new URLSearchParams(params).toString();
+  } else if (params) {
+    opts.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+    opts.body = new URLSearchParams(params).toString();
+  }
+  const res  = await fetch(fullUrl, opts);
+  if (res.status === 401) { doLogout(); return null; }
+  const data = await res.json();
+  if (data.code !== 200) throw new Error(data.msg || '请求失败');
+  return data.data;
+}
+
+/* ── 登出 ─────────────────────────────────────── */
+function doLogout() {
+  localStorage.removeItem('sm_token');
+  localStorage.removeItem('sm_username');
+  localStorage.removeItem('sm_perms');
+  location.href = 'index.html';
+}
+
+/* ── Toast ────────────────────────────────────── */
+let toastTimer;
+function showToast(msg, type) {
+  const el = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  el.style.background = type === 'ok' ? 'var(--c-deep)' : '';
+  el.classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.add('hidden'), 4000);
+}
+
+/* ================================================================
+   店铺管理面板（超管）
+   ================================================================ */
+function initShopsPanel() {
+  if (!isSuperAdmin) return;
+
+  // 折叠/展开新增表单
+  document.getElementById('toggleCreateShopAdmin').addEventListener('click', () => {
+    document.getElementById('formCreateShopAdmin').classList.toggle('hidden');
+  });
+  document.getElementById('refreshShops').addEventListener('click', loadShops);
+
+  // 提交表单
+  document.getElementById('formCreateShopAdmin').addEventListener('submit', async e => {
+    e.preventDefault();
+    const username = document.getElementById('saUsername').value.trim();
+    const password = document.getElementById('saPassword').value;
+    const shopName = document.getElementById('saShopName').value.trim();
+    const quota    = document.getElementById('saDailyQuota').value;
+    const cost     = document.getElementById('saCanSeeCost').checked ? 1 : 0;
+    const errEl    = document.getElementById('errCreateShopAdmin');
+    const btnText  = document.getElementById('saSubmitText');
+
+    if (!username || !password) {
+      showFormErr(errEl, '请填写账号和密码');
+      return;
+    }
+
+    btnText.textContent = '开通中…';
+    errEl.classList.add('hidden');
+    try {
+      const shop = await api('POST', '/admin/shop-admins', {
+        username, password,
+        shopName: shopName || undefined,
+        dailyQuota: quota,
+        canSeeCost: cost,
+      });
+      showToast(`开通成功！店铺编号：${shop.shopNo}`, 'ok');
+      document.getElementById('formCreateShopAdmin').reset();
+      document.getElementById('formCreateShopAdmin').classList.add('hidden');
+      loadShops();
+    } catch (err) {
+      showFormErr(errEl, err.message);
+    } finally {
+      btnText.textContent = '确认开通';
+    }
+  });
+}
+
+async function loadShops() {
+  if (!isSuperAdmin) return;
+  const tbody = document.getElementById('shopTbody');
+  tbody.innerHTML = '<tr><td colspan="3" class="adm-empty">加载中…</td></tr>';
+  try {
+    const shops = await api('GET', '/admin/shops');
+    if (!shops || shops.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="3" class="adm-empty">暂无店铺</td></tr>';
+      return;
+    }
+    tbody.innerHTML = shops.map(s => `
+      <tr>
+        <td><span class="adm-code">${s.shopNo || '-'}</span></td>
+        <td>${s.shopName}</td>
+        <td><span class="adm-badge ${s.status === 1 ? 'badge-ok' : 'badge-off'}">${s.status === 1 ? '正常' : '禁用'}</span></td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="3" class="adm-empty">${e.message}</td></tr>`;
+  }
+}
+
+/* ================================================================
+   用量统计面板（超管）
+   ================================================================ */
+function initUsagePanel() {
+  if (!isSuperAdmin) return;
+  document.getElementById('refreshUsage').addEventListener('click', loadUsageByShop);
+  document.getElementById('closeUsageUser').addEventListener('click', () => {
+    document.getElementById('usageUserCard').classList.add('hidden');
+  });
+}
+
+async function loadUsageByShop() {
+  if (!isSuperAdmin) return;
+  const tbody = document.getElementById('usageShopTbody');
+  tbody.innerHTML = '<tr><td colspan="3" class="adm-empty">加载中…</td></tr>';
+  try {
+    const list = await api('GET', '/admin/usage/shops');
+    if (!list || list.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="3" class="adm-empty">暂无数据</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(r => `
+      <tr>
+        <td>${r.shopId}</td>
+        <td>${r.totalToken ?? r.total_token ?? 0}</td>
+        <td><button class="btn-mini" onclick="loadUsageByUser(${r.shopId})">查看用户</button></td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="3" class="adm-empty">${e.message}</td></tr>`;
+  }
+}
+
+async function loadUsageByUser(shopId) {
+  const card  = document.getElementById('usageUserCard');
+  const tbody = document.getElementById('usageUserTbody');
+  document.getElementById('usageUserTitle').textContent = `店铺 ${shopId} · 用户明细`;
+  tbody.innerHTML = '<tr><td colspan="3" class="adm-empty">加载中…</td></tr>';
+  card.classList.remove('hidden');
+  try {
+    const list = await api('GET', `/admin/usage/shops/${shopId}/users`);
+    if (!list || list.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="3" class="adm-empty">暂无数据</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(r => `
+      <tr>
+        <td>${r.userId ?? r.user_id ?? '-'}</td>
+        <td>${r.username ?? '-'}</td>
+        <td>${r.totalToken ?? r.total_token ?? 0}</td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="3" class="adm-empty">${e.message}</td></tr>`;
+  }
+}
+
+/* ================================================================
+   子账号管理面板（店管 / 超管）
+   ================================================================ */
+function initUsersPanel() {
+  document.getElementById('toggleCreateUser').addEventListener('click', () => {
+    document.getElementById('formCreateUser').classList.toggle('hidden');
+  });
+  document.getElementById('refreshUsers').addEventListener('click', loadUsers);
+
+  document.getElementById('formCreateUser').addEventListener('submit', async e => {
+    e.preventDefault();
+    const uname  = document.getElementById('cuUsername').value.trim();
+    const pwd    = document.getElementById('cuPassword').value;
+    const quota    = document.getElementById('cuDailyQuota').value;
+    const cost     = document.getElementById('cuCanSeeCost').checked ? 1 : 0;
+    const canUseAi = document.getElementById('cuCanUseAi').checked   ? 1 : 0;
+    const errEl  = document.getElementById('errCreateUser');
+    const btnText= document.getElementById('cuSubmitText');
+
+    if (!uname || !pwd) { showFormErr(errEl, '请填写账号和密码'); return; }
+
+    btnText.textContent = '新增中…';
+    errEl.classList.add('hidden');
+    try {
+      await api('POST', '/admin/shop/users', { username: uname, password: pwd, dailyQuota: quota, canSeeCost: cost, canUseAi });
+      showToast('子账号新增成功', 'ok');
+      document.getElementById('formCreateUser').reset();
+      document.getElementById('formCreateUser').classList.add('hidden');
+      loadUsers();
+    } catch (err) {
+      showFormErr(errEl, err.message);
+    } finally {
+      btnText.textContent = '确认新增';
+    }
+  });
+
+  // 编辑弹层
+  document.getElementById('editModalX').addEventListener('click', closeEditModal);
+  document.getElementById('editUserModal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeEditModal();
+  });
+  document.getElementById('editUserForm').addEventListener('submit', submitEditUser);
+}
+
+async function loadUsers() {
+  const tbody = document.getElementById('userTbody');
+  tbody.innerHTML = '<tr><td colspan="5" class="adm-empty">加载中…</td></tr>';
+  try {
+    const users = await api('GET', '/admin/shop/users');
+    if (!users || users.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="adm-empty">暂无子账号</td></tr>';
+      return;
+    }
+    tbody.innerHTML = users.map(u => `
+      <tr>
+        <td>${u.username}</td>
+        <td>${u.dailyQuota === -1 ? '不限' : u.dailyQuota}</td>
+        <td><span class="adm-badge ${u.canSeeCost ? 'badge-ok' : 'badge-off'}">${u.canSeeCost ? '是' : '否'}</span></td>
+        <td><span class="adm-badge ${u.canUseAi !== 0 ? 'badge-ok' : 'badge-off'}">${u.canUseAi !== 0 ? '是' : '否'}</span></td>
+        <td><button class="btn-mini" onclick="openEditModal(${u.id},'${u.username}',${u.dailyQuota},${u.canSeeCost},${u.canUseAi})">编辑</button></td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="4" class="adm-empty">${e.message}</td></tr>`;
+  }
+}
+
+let _editUserId = null;
+function openEditModal(id, name, quota, canSeeCost, canUseAi) {
+  _editUserId = id;
+  document.getElementById('editModalTitle').textContent = `编辑 · ${name}`;
+  document.getElementById('editQuota').value        = quota;
+  document.getElementById('editCanSeeCost').checked = !!canSeeCost;
+  document.getElementById('editCanUseAi').checked   = canUseAi !== 0;
+  document.getElementById('errEditUser').classList.add('hidden');
+  document.getElementById('editUserModal').classList.remove('hidden');
+}
+function closeEditModal() {
+  document.getElementById('editUserModal').classList.add('hidden');
+  _editUserId = null;
+}
+async function submitEditUser(e) {
+  e.preventDefault();
+  if (!_editUserId) return;
+  const quota    = document.getElementById('editQuota').value;
+  const cost     = document.getElementById('editCanSeeCost').checked ? 1 : 0;
+  const canUseAi = document.getElementById('editCanUseAi').checked   ? 1 : 0;
+  const errEl  = document.getElementById('errEditUser');
+  const btnText= document.getElementById('editSubmitText');
+  btnText.textContent = '保存中…';
+  errEl.classList.add('hidden');
+  try {
+    await api('PUT', `/admin/shop/users/${_editUserId}`, { dailyQuota: quota, canSeeCost: cost, canUseAi });
+    showToast('修改成功', 'ok');
+    closeEditModal();
+    loadUsers();
+  } catch (err) {
+    showFormErr(errEl, err.message);
+  } finally {
+    btnText.textContent = '保存修改';
+  }
+}
+
+/* ── 工具 ─────────────────────────────────────── */
+function showFormErr(el, msg) {
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+</script>
+</body>
+</html>

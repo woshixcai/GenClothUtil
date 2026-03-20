@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="gentle-luxury">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>StyleMe · 订单记录</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .filter-bar  { display:flex; gap:8px; padding:0 16px 12px; }
+    .filter-bar input { flex:1; padding:8px 10px; border-radius:8px; border:1px solid var(--border); font-size:13px; background:var(--bg-card); color:var(--text-1); }
+    .filter-bar .query-btn { padding:8px 16px; border-radius:8px; background:var(--grad); color:#fff; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap; }
+    .quick-dates { display:flex; gap:6px; padding:0 16px 14px; overflow-x:auto; scrollbar-width:none; }
+    .quick-dates::-webkit-scrollbar { display:none; }
+    .qdBtn  { padding:5px 14px; border-radius:20px; border:1px solid var(--border); font-size:12px; cursor:pointer; white-space:nowrap; background:var(--bg-2); color:var(--text-2); }
+    .qdBtn.active { background:var(--accent,#c0876a); color:#fff; border-color:transparent; }
+
+    /* 订单卡片 */
+    .order-card  { margin:0 16px 12px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-m); overflow:hidden; }
+    .order-head  { display:flex; align-items:center; justify-content:space-between; padding:12px 14px; cursor:pointer; }
+    .order-no    { font-size:13px; font-weight:700; color:var(--text-1); }
+    .order-time  { font-size:11px; color:var(--text-3); margin-top:2px; }
+    .order-type  { font-size:12px; font-weight:600; padding:3px 10px; border-radius:20px; }
+    .type-sale   { background:#fff3e0; color:#c06000; }
+    .type-refund { background:#ffeef0; color:#c04040; }
+    .order-amount{ font-size:16px; font-weight:800; color:var(--accent,#c0876a); }
+    .order-body  { border-top:1px solid var(--border); padding:0 14px; display:none; }
+    .order-body.open { display:block; }
+    .order-item-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border,#f5ebe4); font-size:13px; }
+    .order-item-row:last-child { border:none; }
+    .oi-name   { color:var(--text-1); font-weight:500; }
+    .oi-sku    { font-size:11px; color:var(--text-3); margin-top:2px; }
+    .oi-right  { text-align:right; flex-shrink:0; }
+    .oi-qty    { font-size:12px; color:var(--text-3); }
+    .oi-price  { font-size:13px; font-weight:600; color:var(--accent); }
+    .refund-btn { margin:10px 0; width:100%; padding:8px 0; border-radius:var(--radius-s,8px);
+                  border:1.5px solid #c04040; background:#fff; color:#c04040; font-size:13px;
+                  font-weight:600; cursor:pointer; text-align:center; }
+    .refund-btn:active { background:#ffeef0; }
+    .refunded-tag { text-align:center; padding:8px 0 10px; font-size:12px; color:#999; }
+
+    .empty-tip   { text-align:center; padding:50px 0; color:var(--text-3); font-size:14px; }
+    .loading-tip { text-align:center; padding:40px 0; color:var(--text-3); font-size:14px; }
+  </style>
+</head>
+<body>
+
+<header class="header"><div class="header-inner">
+  <button class="icon-btn" onclick="history.back()">←</button>
+  <div class="logo"><span class="logo-mark">✦</span><span class="logo-name">订单记录</span></div>
+  <a href="report.html" style="font-size:13px;color:var(--accent);font-weight:600;text-decoration:none">报表</a>
+</div></header>
+
+<main class="main" style="padding-top:72px; padding-bottom:80px">
+
+  <div class="quick-dates" id="quickDates">
+    <button class="qdBtn" data-range="today">今天</button>
+    <button class="qdBtn active" data-range="month">本月</button>
+    <button class="qdBtn" data-range="last30">近30天</button>
+    <button class="qdBtn" data-range="year">今年</button>
+  </div>
+
+  <div class="filter-bar">
+    <input type="date" id="startDate">
+    <span style="color:var(--text-3);font-size:13px;line-height:36px">至</span>
+    <input type="date" id="endDate">
+    <div class="query-btn" onclick="loadOrders()">查询</div>
+  </div>
+
+  <div id="loadingTip" class="loading-tip" style="display:none">加载中…</div>
+  <div id="orderList"></div>
+  <div class="empty-tip hidden" id="emptyTip">暂无订单</div>
+  <div class="toast hidden" id="toast"><span class="toast-icon">⚠</span><span id="toastMsg"></span></div>
+</main>
+
+<nav class="bottom-nav">
+  <a class="bnav-item" href="index.html"><span class="bnav-icon">🏠</span><span class="bnav-label">换装</span></a>
+  <a class="bnav-item" href="inventory.html"><span class="bnav-icon">📦</span><span class="bnav-label">服装库</span></a>
+  <a class="bnav-item bnav-add" href="add-item.html"><span class="bnav-icon">＋</span><span class="bnav-label">入库</span></a>
+  <a class="bnav-item" href="order.html"><span class="bnav-icon">🧾</span><span class="bnav-label">开单</span></a>
+  <a class="bnav-item active" href="order-list.html"><span class="bnav-icon">📊</span><span class="bnav-label">订单</span></a>
+</nav>
+
+<script>
+const getToken = () => localStorage.getItem('sm_token') || '';
+
+let toastTimer;
+const showToast = (msg, dur = 3000, type = 'error') => {
+  const t    = document.getElementById('toast');
+  const icon = t.querySelector('.toast-icon');
+  document.getElementById('toastMsg').textContent = msg;
+  t.classList.toggle('toast-ok', type === 'ok');
+  if (icon) icon.textContent = type === 'ok' ? '✓' : '⚠';
+  t.classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.add('hidden'), dur);
+};
+
+let orders = [];
+
+/* ── 日期工具 ─────────────────────────────────── */
+function fmt(d) { return d.toISOString().slice(0, 10); }
+function setRange(s, e) {
+  document.getElementById('startDate').value = fmt(s);
+  document.getElementById('endDate').value   = fmt(e);
+}
+function applyRange(r) {
+  const now = new Date(), today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (r === 'today')  { setRange(today, today); }
+  else if (r === 'month') { setRange(new Date(now.getFullYear(), now.getMonth(), 1), today); }
+  else if (r === 'last30') { const s = new Date(today); s.setDate(s.getDate()-29); setRange(s, today); }
+  else if (r === 'year')  { setRange(new Date(now.getFullYear(), 0, 1), today); }
+}
+
+document.getElementById('quickDates').addEventListener('click', e => {
+  const btn = e.target.closest('.qdBtn');
+  if (!btn) return;
+  document.querySelectorAll('.qdBtn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  applyRange(btn.dataset.range);
+  loadOrders();
+});
+
+/* ── 加载订单 ─────────────────────────────────── */
+async function loadOrders() {
+  const start = document.getElementById('startDate').value;
+  let   end   = document.getElementById('endDate').value;
+  if (end) { const d = new Date(end); d.setDate(d.getDate()+1); end = fmt(d); }
+
+  document.getElementById('loadingTip').style.display = 'block';
+  document.getElementById('orderList').innerHTML = '';
+  document.getElementById('emptyTip').classList.add('hidden');
+
+  try {
+    let url = '/orders?';
+    if (start) url += 'startDate=' + start + '&';
+    if (end)   url += 'endDate='   + end;
+    const res  = await fetch(url, { headers: { 'Authorization': 'Bearer ' + getToken() } });
+    if (res.status === 401) { location.href = 'index.html'; return; }
+    const data = await res.json();
+    if (data.code !== 200) { showToast('加载失败'); return; }
+    orders = data.data || [];
+    renderOrders();
+  } catch(e) {
+    showToast('网络错误');
+  } finally {
+    document.getElementById('loadingTip').style.display = 'none';
+  }
+}
+
+/* ── 渲染订单 ─────────────────────────────────── */
+function renderOrders() {
+  if (orders.length === 0) {
+    document.getElementById('emptyTip').classList.remove('hidden');
+    return;
+  }
+  // 判断哪些销售单已被退货
+  const refundedIds = new Set(orders.filter(o => o.orderType === 2 && o.origOrderId)
+    .map(o => o.origOrderId));
+
+  document.getElementById('orderList').innerHTML = orders.map(o => {
+    const isSale   = o.orderType === 1;
+    const isRefund = o.orderType === 2;
+    const alreadyRefunded = isSale && refundedIds.has(o.id);
+    const typeTag  = isSale
+      ? `<span class="order-type type-sale">销售</span>`
+      : `<span class="order-type type-refund">退货</span>`;
+    const items    = (o.items || []).map(li => `
+      <div class="order-item-row">
+        <div>
+          <div class="oi-name">${li.itemName || '-'}</div>
+          <div class="oi-sku">${li.skuDesc || ''}</div>
+        </div>
+        <div class="oi-right">
+          <div class="oi-qty">×${li.qty}</div>
+          <div class="oi-price">¥${((li.unitPrice||0) * li.qty).toFixed(2)}</div>
+        </div>
+      </div>
+    `).join('');
+
+    const refundAction = isSale
+      ? (alreadyRefunded
+          ? `<div class="refunded-tag">已退货</div>`
+          : `<div class="refund-btn" onclick="refundOrder(${o.id})">整单退货</div>`)
+      : '';
+
+    return `
+      <div class="order-card" id="order-${o.id}">
+        <div class="order-head" onclick="toggleOrder(${o.id})">
+          <div>
+            <div class="order-no">${o.orderNo} ${typeTag}</div>
+            <div class="order-time">${fmtTime(o.createdTime)}</div>
+          </div>
+          <div class="order-amount">¥${(o.totalAmount||0).toFixed(2)}</div>
+        </div>
+        <div class="order-body" id="body-${o.id}">
+          ${items}
+          ${refundAction}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function toggleOrder(id) {
+  document.getElementById('body-' + id).classList.toggle('open');
+}
+
+function fmtTime(t) {
+  if (!t) return '';
+  return new Date(t).toLocaleString('zh-CN', {
+    month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'
+  });
+}
+
+/* ── 退货 ─────────────────────────────────────── */
+async function refundOrder(orderId) {
+  if (!confirm('确定对该订单整单退货？库存将加回。')) return;
+  try {
+    const res  = await fetch(`/orders/${orderId}/refund`, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + getToken() }
+    });
+    const data = await res.json();
+    if (data.code === 200) {
+      showToast('退货成功', 2000, 'ok');
+      loadOrders();
+    } else {
+      showToast(data.msg || '退货失败');
+    }
+  } catch(e) {
+    showToast('网络错误');
+  }
+}
+
+/* ── 初始化 ───────────────────────────────────── */
+(function init() {
+  if (!getToken()) { location.href = 'index.html'; return; }
+  applyRange('month');
+  loadOrders();
+})();
+</script>
+</body>
+</html>

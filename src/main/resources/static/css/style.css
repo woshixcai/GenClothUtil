@@ -659,6 +659,31 @@ input, button, textarea { font-family: inherit; outline: none; border: none; bac
   animation: slideUp 0.3s var(--ease);
   white-space: nowrap;
   max-width: calc(100vw - 48px);
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+.toast.toast-ok {
+  background: #f0faf4;
+  border-color: #a8d8b8;
+  color: #1e6b3c;
+}
+
+/* ── 进度条（loading-card 内） ───────────────── */
+.progress-bar-wrap {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+}
+.progress-bar-track {
+  flex: 1; height: 6px; border-radius: 100px;
+  background: var(--bg-2);
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: var(--grad);
+  border-radius: 100px;
+  transition: width 0.6s var(--ease);
+}
+.progress-pct {
+  font-size: 12px; color: var(--text-3); width: 32px; text-align: right; flex-shrink: 0;
 }
 .toast-icon { font-size: 16px; flex-shrink: 0; }
 
@@ -842,3 +867,218 @@ input, button, textarea { font-family: inherit; outline: none; border: none; bac
 .fb-mic { width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--border,#eee); background: var(--bg-page,#fdfaf7); font-size: 18px; cursor: pointer; flex-shrink: 0; }
 .fb-mic.mic-active { background: #fee; border-color: #f66; }
 .fb-trigger { margin-top: 12px; width: 100%; }
+
+/* ================================================================
+   Admin 管理中心页面专属样式
+   ================================================================ */
+
+/* 整体布局 */
+.admin-main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px 16px 100px;
+  min-height: calc(100vh - 62px);
+}
+
+/* 无权限提示 */
+.admin-no-perm {
+  text-align: center;
+  padding: 80px 24px;
+}
+.no-perm-icon  { font-size: 52px; margin-bottom: 16px; }
+.no-perm-title { font-size: 20px; font-weight: 700; color: var(--text-1); margin-bottom: 8px; }
+.no-perm-sub   { font-size: 14px; color: var(--text-3); }
+
+/* 角色标签 */
+.role-badge {
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 100px;
+  background: var(--grad);
+  color: var(--btn-text);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Tab 栏 */
+.admin-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.adm-tab {
+  padding: 9px 20px;
+  border-radius: 100px;
+  background: var(--bg-2);
+  border: 1.5px solid var(--border);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all 0.22s var(--ease);
+}
+.adm-tab:hover { border-color: var(--c-primary); color: var(--text-1); }
+.adm-tab.active {
+  background: var(--grad);
+  color: var(--btn-text);
+  border-color: transparent;
+  box-shadow: var(--shadow-s);
+}
+
+/* 卡片 */
+.adm-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-m);
+  box-shadow: var(--shadow-s);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.adm-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.adm-card-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-1);
+}
+
+/* 小按钮 */
+.btn-mini {
+  padding: 6px 14px;
+  border-radius: 100px;
+  background: var(--bg-2);
+  border: 1.5px solid var(--border);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.btn-mini:hover {
+  background: var(--grad);
+  color: var(--btn-text);
+  border-color: transparent;
+}
+
+/* 表单区域 */
+.adm-form {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  margin-top: 4px;
+  animation: slideUp 0.22s var(--ease);
+}
+.adm-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 16px;
+}
+.adm-fields .field:last-child,
+.adm-fields .field.adm-check-field { grid-column: span 1; }
+.adm-check-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.adm-submit {
+  margin-top: 16px;
+  padding: 13px 28px;
+  font-size: 15px;
+}
+.adm-form-err {
+  font-size: 13px;
+  color: #b04040;
+  background: #fff5f5;
+  border: 1px solid #ffd0d0;
+  border-radius: var(--radius-s);
+  padding: 10px 14px;
+  margin-top: 8px;
+}
+
+/* 表格 */
+.adm-table-wrap { overflow-x: auto; }
+.adm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.adm-table th {
+  text-align: left;
+  padding: 9px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-3);
+  border-bottom: 1.5px solid var(--border);
+  white-space: nowrap;
+}
+.adm-table td {
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-1);
+  vertical-align: middle;
+}
+.adm-table tr:last-child td { border-bottom: none; }
+.adm-table tr:hover td      { background: var(--bg-2); }
+.adm-empty { text-align: center; color: var(--text-3); padding: 28px !important; }
+
+/* 编号标签 */
+.adm-code {
+  font-family: monospace;
+  font-size: 12px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 8px;
+  letter-spacing: 0.3px;
+}
+
+/* 状态标签 */
+.adm-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.badge-ok  { background: #e8f5e9; color: #2e7d32; }
+.badge-off { background: #fafafa; color: #999; border: 1px solid #e0e0e0; }
+
+/* Toggle Switch */
+.adm-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  cursor: pointer;
+}
+.adm-switch input { opacity: 0; width: 0; height: 0; }
+.adm-switch-track {
+  position: absolute; inset: 0;
+  border-radius: 100px;
+  background: var(--border);
+  transition: background 0.25s;
+}
+.adm-switch-track::after {
+  content: '';
+  position: absolute;
+  left: 3px; top: 3px;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,.2);
+  transition: transform 0.25s;
+}
+.adm-switch input:checked + .adm-switch-track { background: var(--c-primary); }
+.adm-switch input:checked + .adm-switch-track::after { transform: translateX(20px); }
+
+@media (max-width: 520px) {
+  .adm-fields { grid-template-columns: 1fr; }
+  .adm-card   { padding: 16px; }
+  .admin-tabs { gap: 6px; }
+  .adm-tab    { padding: 8px 14px; font-size: 13px; }
+}

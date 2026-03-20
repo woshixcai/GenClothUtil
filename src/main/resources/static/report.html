@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="gentle-luxury">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>StyleMe · 销售报表</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .date-bar       { display:flex; gap:8px; align-items:center; padding:0 16px 12px; flex-wrap:wrap; }
+    .date-bar input { flex:1; min-width:120px; padding:8px 10px; border-radius:var(--radius-s,8px); border:1px solid var(--border); font-size:13px; background:var(--bg-card); color:var(--text-1); }
+    .date-bar .query-btn { padding:8px 18px; border-radius:var(--radius-s,8px); background:var(--grad); color:#fff; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap; }
+
+    /* 快选日期 */
+    .quick-dates { display:flex; gap:6px; padding:0 16px 16px; overflow-x:auto; scrollbar-width:none; }
+    .quick-dates::-webkit-scrollbar { display:none; }
+    .qdBtn { padding:5px 14px; border-radius:20px; border:1px solid var(--border); font-size:12px; cursor:pointer; white-space:nowrap; background:var(--bg-2); color:var(--text-2); }
+    .qdBtn.active { background:var(--accent,#c0876a); color:#fff; border-color:transparent; }
+
+    /* 汇总卡片 */
+    .summary-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; padding:0 16px 16px; }
+    .sum-card     { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-m); padding:14px 16px; }
+    .sum-label    { font-size:11px; color:var(--text-3); margin-bottom:6px; }
+    .sum-value    { font-size:22px; font-weight:800; color:var(--text-1); line-height:1; }
+    .sum-value.green  { color:#2e8b57; }
+    .sum-value.accent { color:var(--accent,#c0876a); }
+
+    /* 明细表 */
+    .detail-wrap  { padding:0 16px 80px; }
+    .detail-title { font-size:14px; font-weight:700; color:var(--text-1); margin-bottom:10px; }
+    .detail-table { width:100%; border-collapse:collapse; font-size:12px; }
+    .detail-table th { background:var(--bg-2); color:var(--text-3); font-weight:600; padding:8px 6px; text-align:left; border-bottom:1px solid var(--border); }
+    .detail-table td { padding:10px 6px; border-bottom:1px solid var(--border,#f0ebe4); color:var(--text-1); vertical-align:middle; }
+    .detail-table td.right { text-align:right; }
+    .profit-pos { color:#2e8b57; font-weight:600; }
+    .profit-neg { color:#c04040; font-weight:600; }
+    .empty-tip  { text-align:center; padding:50px 0; color:var(--text-3); font-size:14px; }
+    .loading-tip { text-align:center; padding:40px 0; color:var(--text-3); font-size:14px; }
+  </style>
+</head>
+<body>
+
+<header class="header"><div class="header-inner">
+  <button class="icon-btn" onclick="history.back()">←</button>
+  <div class="logo"><span class="logo-mark">✦</span><span class="logo-name">销售报表</span></div>
+  <div></div>
+</div></header>
+
+<main class="main" style="padding-top:72px">
+
+  <!-- 快选 -->
+  <div class="quick-dates" id="quickDates">
+    <button class="qdBtn" data-range="today">今天</button>
+    <button class="qdBtn active" data-range="month">本月</button>
+    <button class="qdBtn" data-range="last30">近30天</button>
+    <button class="qdBtn" data-range="last90">近90天</button>
+    <button class="qdBtn" data-range="year">今年</button>
+  </div>
+
+  <!-- 自定义日期 -->
+  <div class="date-bar">
+    <input type="date" id="startDate">
+    <span style="color:var(--text-3);font-size:13px">至</span>
+    <input type="date" id="endDate">
+    <div class="query-btn" onclick="loadReport()">查询</div>
+  </div>
+
+  <div id="loadingTip" class="loading-tip" style="display:none">加载中…</div>
+
+  <!-- 汇总卡片 -->
+  <div class="summary-grid" id="summaryGrid" style="display:none">
+    <div class="sum-card">
+      <div class="sum-label">销售总额</div>
+      <div class="sum-value accent" id="totalSales">¥0</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-label">毛利润</div>
+      <div class="sum-value green" id="grossProfit">¥0</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-label">总成本</div>
+      <div class="sum-value" id="totalCost">¥0</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-label">出库笔数</div>
+      <div class="sum-value" id="orderCount">0</div>
+    </div>
+  </div>
+
+  <!-- 分商品明细 -->
+  <div class="detail-wrap" id="detailWrap" style="display:none">
+    <div class="detail-title">分商品明细</div>
+    <table class="detail-table">
+      <thead>
+        <tr>
+          <th>商品</th>
+          <th class="right">数量</th>
+          <th class="right">销售额</th>
+          <th class="right">毛利</th>
+        </tr>
+      </thead>
+      <tbody id="detailBody"></tbody>
+    </table>
+  </div>
+
+  <div class="empty-tip hidden" id="emptyTip">暂无销售记录</div>
+  <div class="toast hidden" id="toast"><span class="toast-icon">⚠</span><span id="toastMsg"></span></div>
+</main>
+
+<nav class="bottom-nav">
+  <a class="bnav-item" href="index.html"><span class="bnav-icon">🏠</span><span class="bnav-label">换装</span></a>
+  <a class="bnav-item" href="inventory.html"><span class="bnav-icon">📦</span><span class="bnav-label">服装库</span></a>
+  <a class="bnav-item bnav-add" href="add-item.html"><span class="bnav-icon">＋</span><span class="bnav-label">入库</span></a>
+  <a class="bnav-item" href="order.html"><span class="bnav-icon">🧾</span><span class="bnav-label">开单</span></a>
+  <a class="bnav-item active" href="order-list.html"><span class="bnav-icon">📊</span><span class="bnav-label">订单</span></a>
+</nav>
+
+<script>
+const getToken = () => localStorage.getItem('sm_token') || '';
+
+let toastTimer;
+const showToast = (msg, type = 'error') => {
+  const t    = document.getElementById('toast');
+  const icon = t.querySelector('.toast-icon');
+  document.getElementById('toastMsg').textContent = msg;
+  t.classList.toggle('toast-ok', type === 'ok');
+  if (icon) icon.textContent = type === 'ok' ? '✓' : '⚠';
+  t.classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.add('hidden'), 3000);
+};
+
+/* ── 日期工具 ─────────────────────────────────── */
+function fmt(d) {
+  // 返回 yyyy-MM-dd
+  return d.toISOString().slice(0, 10);
+}
+function setDateRange(start, end) {
+  document.getElementById('startDate').value = fmt(start);
+  document.getElementById('endDate').value   = fmt(end);
+}
+function applyQuickRange(range) {
+  const now   = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (range === 'today') {
+    setDateRange(today, today);
+  } else if (range === 'month') {
+    setDateRange(new Date(now.getFullYear(), now.getMonth(), 1), today);
+  } else if (range === 'last30') {
+    const s = new Date(today); s.setDate(s.getDate() - 29);
+    setDateRange(s, today);
+  } else if (range === 'last90') {
+    const s = new Date(today); s.setDate(s.getDate() - 89);
+    setDateRange(s, today);
+  } else if (range === 'year') {
+    setDateRange(new Date(now.getFullYear(), 0, 1), today);
+  }
+}
+
+/* ── 快选按钮 ─────────────────────────────────── */
+document.getElementById('quickDates').addEventListener('click', e => {
+  const btn = e.target.closest('.qdBtn');
+  if (!btn) return;
+  document.querySelectorAll('.qdBtn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  applyQuickRange(btn.dataset.range);
+  loadReport();
+});
+
+/* ── 加载报表 ─────────────────────────────────── */
+async function loadReport() {
+  const startDate = document.getElementById('startDate').value;
+  const endDate   = document.getElementById('endDate').value;
+
+  // endDate 查询时需要包含当天，传 +1 天
+  let endParam = endDate;
+  if (endDate) {
+    const d = new Date(endDate);
+    d.setDate(d.getDate() + 1);
+    endParam = fmt(d);
+  }
+
+  document.getElementById('loadingTip').style.display    = 'block';
+  document.getElementById('summaryGrid').style.display   = 'none';
+  document.getElementById('detailWrap').style.display    = 'none';
+  document.getElementById('emptyTip').classList.add('hidden');
+
+  try {
+    let qs = '';
+    if (startDate) qs += 'startDate=' + startDate + '&';
+    if (endParam)  qs += 'endDate='   + endParam;
+
+    const res  = await fetch('/orders/report/sales?' + qs, { headers: { 'Authorization': 'Bearer ' + getToken() } });
+    if (res.status === 401) { location.href = 'index.html'; return; }
+    const data = await res.json();
+    if (data.code !== 200) { showToast('加载失败：' + (data.msg || '')); return; }
+
+    renderReport(data.data);
+  } catch(e) {
+    showToast('网络错误');
+  } finally {
+    document.getElementById('loadingTip').style.display = 'none';
+  }
+}
+
+function renderReport(report) {
+  const s = report.summary || {};
+  document.getElementById('totalSales').textContent  = '¥' + (s.totalSales  || 0).toFixed(2);
+  document.getElementById('grossProfit').textContent = '¥' + (s.grossProfit || 0).toFixed(2);
+  document.getElementById('totalCost').textContent   = '¥' + (s.totalCost   || 0).toFixed(2);
+  document.getElementById('orderCount').textContent  = s.orderCount || 0;
+  document.getElementById('summaryGrid').style.display = 'grid';
+
+  const items = report.items || [];
+  if (items.length === 0) {
+    document.getElementById('emptyTip').classList.remove('hidden');
+    return;
+  }
+
+  document.getElementById('detailBody').innerHTML = items.map(item => {
+    const profit = parseFloat(item.profit || 0);
+    const cls    = profit >= 0 ? 'profit-pos' : 'profit-neg';
+    return `<tr>
+      <td>
+        <div style="font-weight:600;font-size:13px">${item.itemName || '-'}</div>
+        <div style="font-size:11px;color:var(--text-3)">${item.category || ''}</div>
+      </td>
+      <td class="right">${item.qty}</td>
+      <td class="right">¥${parseFloat(item.sales || 0).toFixed(2)}</td>
+      <td class="right"><span class="${cls}">¥${profit.toFixed(2)}</span></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('detailWrap').style.display = 'block';
+}
+
+/* ── 初始化 ───────────────────────────────────── */
+(function init() {
+  if (!getToken()) { location.href = 'index.html'; return; }
+  applyQuickRange('month'); // 默认本月
+  loadReport();
+})();
+</script>
+</body>
+</html>

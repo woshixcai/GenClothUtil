@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="gentle-luxury">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>StyleMe · 开单</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* 搜索栏 */
+    .search-bar  { display:flex; gap:8px; padding:0 16px 12px; align-items:center; }
+    .search-input{ flex:1; padding:9px 14px; border-radius:var(--radius-m); border:1.5px solid var(--border);
+                   font-size:14px; background:var(--bg-card); color:var(--text-1); }
+    .search-input:focus { outline:none; border-color:var(--c-primary,#c0876a); }
+    .cat-tabs    { display:flex; gap:8px; overflow-x:auto; padding:0 16px 10px; scrollbar-width:none; }
+    .cat-tabs::-webkit-scrollbar { display:none; }
+    .cat-tab     { padding:5px 14px; border-radius:20px; border:1px solid var(--border); font-size:12px;
+                   cursor:pointer; white-space:nowrap; background:var(--bg-2); color:var(--text-2); }
+    .cat-tab.active { background:var(--accent,#c0876a); color:#fff; border-color:transparent; }
+
+    /* 商品行 */
+    .item-row    { display:flex; align-items:center; gap:12px; padding:12px 16px;
+                   border-bottom:1px solid var(--border,#f0ebe4); background:var(--bg-card); }
+    .item-thumb  { width:52px; height:64px; border-radius:8px; background:#f5f5f5; flex-shrink:0;
+                   overflow:hidden; display:flex; align-items:center; justify-content:center; font-size:24px; }
+    .item-thumb img { width:100%; height:100%; object-fit:cover; }
+    .item-body   { flex:1; min-width:0; }
+    .item-rname  { font-size:14px; font-weight:600; color:var(--text-1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .item-rprice { font-size:12px; color:var(--accent,#c0876a); font-weight:600; margin-top:2px; }
+    .item-rstock { font-size:11px; color:var(--text-3); margin-top:1px; }
+    .add-btn     { width:32px; height:32px; border-radius:50%; background:var(--grad); color:#fff;
+                   font-size:20px; line-height:32px; text-align:center; cursor:pointer; flex-shrink:0; }
+    .add-btn:active { opacity:.7; }
+
+    /* 购物车浮层 */
+    .cart-bar    {
+      position:fixed; bottom:68px; left:0; right:0;
+      background:var(--bg-card); border-top:1.5px solid var(--border);
+      padding:10px 16px; display:flex; align-items:center; gap:12px;
+      box-shadow:0 -4px 12px rgba(0,0,0,.06); z-index:100;
+      transition: transform .2s;
+    }
+    .cart-bar.empty { transform: translateY(100%); }
+    .cart-icon-wrap { position:relative; cursor:pointer; }
+    .cart-icon   { font-size:28px; }
+    .cart-badge  { position:absolute; top:-4px; right:-6px; background:#e74c3c; color:#fff;
+                   font-size:10px; font-weight:700; border-radius:10px; padding:1px 5px; }
+    .cart-amount { flex:1; font-size:15px; font-weight:700; color:var(--text-1); }
+    .cart-amount span { color:var(--accent,#c0876a); }
+    .submit-cart { padding:10px 22px; border-radius:var(--radius-m); background:var(--grad);
+                   color:#fff; font-size:14px; font-weight:700; cursor:pointer; }
+
+    /* 购物车明细弹层 */
+    .cart-sheet  {
+      position:fixed; left:0; right:0; bottom:0; z-index:200;
+      background:var(--bg-card); border-radius:20px 20px 0 0;
+      padding:20px 16px 80px; max-height:70vh; overflow-y:auto;
+      transform:translateY(100%); transition:transform .25s var(--ease);
+      box-shadow:0 -8px 24px rgba(0,0,0,.12);
+    }
+    .cart-sheet.open { transform:translateY(0); }
+    .sheet-title { font-size:16px; font-weight:700; color:var(--text-1); margin-bottom:16px; display:flex; justify-content:space-between; }
+    .sheet-close { font-size:22px; cursor:pointer; color:var(--text-3); }
+    .cart-line   { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); }
+    .cart-line-info { flex:1; min-width:0; }
+    .cart-line-name { font-size:13px; font-weight:600; color:var(--text-1); }
+    .cart-line-sku  { font-size:11px; color:var(--text-3); margin-top:2px; }
+    .cart-qty-ctrl  { display:flex; align-items:center; gap:8px; }
+    .qty-btn { width:26px; height:26px; border-radius:50%; border:1.5px solid var(--border);
+               background:var(--bg-2); font-size:16px; line-height:24px; text-align:center;
+               cursor:pointer; color:var(--text-2); }
+    .qty-val { font-size:14px; font-weight:600; min-width:20px; text-align:center; }
+    .cart-line-price { font-size:13px; color:var(--accent); font-weight:600; margin-left:6px; }
+    .cart-line-del   { font-size:18px; color:var(--text-3); cursor:pointer; padding:0 4px; }
+
+    /* SKU 选择弹层 */
+    .sku-sheet   {
+      position:fixed; left:0; right:0; bottom:0; z-index:300;
+      background:var(--bg-card); border-radius:20px 20px 0 0;
+      padding:20px 16px 40px;
+      transform:translateY(100%); transition:transform .25s var(--ease);
+      box-shadow:0 -8px 24px rgba(0,0,0,.12);
+    }
+    .sku-sheet.open { transform:translateY(0); }
+    .sku-option  { display:flex; align-items:center; justify-content:space-between;
+                   padding:12px 0; border-bottom:1px solid var(--border); cursor:pointer; }
+    .sku-option:last-child { border:none; }
+    .sku-opt-label { font-size:14px; color:var(--text-1); }
+    .sku-opt-stock { font-size:12px; color:var(--text-3); }
+    .mask { position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:150; display:none; }
+    .mask.show { display:block; }
+
+    .empty-tip   { text-align:center; padding:50px 0; color:var(--text-3); font-size:14px; }
+  </style>
+</head>
+<body>
+
+<header class="header"><div class="header-inner">
+  <div class="logo"><span class="logo-mark">✦</span><span class="logo-name">开单</span></div>
+  <a href="order-list.html" style="font-size:13px;color:var(--accent);font-weight:600;text-decoration:none">订单记录</a>
+</div></header>
+
+<main class="main" style="padding-top:72px; padding-bottom:140px">
+
+  <!-- 搜索 -->
+  <div class="search-bar">
+    <input class="search-input" type="search" id="searchInput" placeholder="搜索商品名称…" autocomplete="off">
+  </div>
+  <!-- 分类快选 -->
+  <div class="cat-tabs" id="catTabs">
+    <button class="cat-tab active" data-cat="">全部</button>
+    <button class="cat-tab" data-cat="上装">上装</button>
+    <button class="cat-tab" data-cat="下装">下装</button>
+    <button class="cat-tab" data-cat="外套">外套</button>
+    <button class="cat-tab" data-cat="裙装">裙装</button>
+    <button class="cat-tab" data-cat="配饰">配饰</button>
+  </div>
+
+  <div id="itemList"></div>
+  <div class="empty-tip hidden" id="emptyTip">暂无商品</div>
+  <div class="toast hidden" id="toast"><span class="toast-icon">⚠</span><span id="toastMsg"></span></div>
+</main>
+
+<!-- 购物车底栏 -->
+<div class="cart-bar empty" id="cartBar">
+  <div class="cart-icon-wrap" onclick="openCart()">
+    <div class="cart-icon">🛒</div>
+    <div class="cart-badge" id="cartBadge">0</div>
+  </div>
+  <div class="cart-amount">合计 <span id="cartTotal">¥0</span></div>
+  <div class="cart-amount" style="flex:0;font-size:12px;color:var(--text-3)" id="cartCount"></div>
+  <div class="submit-cart" onclick="submitOrder()">提交订单</div>
+</div>
+
+<!-- 遮罩 -->
+<div class="mask" id="mask" onclick="closeMask()"></div>
+
+<!-- 购物车明细弹层 -->
+<div class="cart-sheet" id="cartSheet">
+  <div class="sheet-title">
+    <span>购物清单</span>
+    <span class="sheet-close" onclick="closeCart()">×</span>
+  </div>
+  <div id="cartLines"></div>
+</div>
+
+<!-- SKU 选择弹层 -->
+<div class="sku-sheet" id="skuSheet">
+  <div class="sheet-title">
+    <span id="skuSheetTitle">选择规格</span>
+    <span class="sheet-close" onclick="closeSkuSheet()">×</span>
+  </div>
+  <div id="skuOptions"></div>
+</div>
+
+<nav class="bottom-nav">
+  <a class="bnav-item" href="index.html"><span class="bnav-icon">🏠</span><span class="bnav-label">换装</span></a>
+  <a class="bnav-item" href="inventory.html"><span class="bnav-icon">📦</span><span class="bnav-label">服装库</span></a>
+  <a class="bnav-item bnav-add" href="add-item.html"><span class="bnav-icon">＋</span><span class="bnav-label">入库</span></a>
+  <a class="bnav-item active" href="order.html"><span class="bnav-icon">🧾</span><span class="bnav-label">开单</span></a>
+  <a class="bnav-item" href="order-list.html"><span class="bnav-icon">📊</span><span class="bnav-label">订单</span></a>
+</nav>
+
+<script>
+const getToken = () => localStorage.getItem('sm_token') || '';
+
+let toastTimer;
+const showToast = (msg, dur = 3000, type = 'error') => {
+  const t    = document.getElementById('toast');
+  const icon = t.querySelector('.toast-icon');
+  document.getElementById('toastMsg').textContent = msg;
+  t.classList.toggle('toast-ok', type === 'ok');
+  if (icon) icon.textContent = type === 'ok' ? '✓' : '⚠';
+  t.classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.add('hidden'), dur);
+};
+
+/* ── 数据 ─────────────────────────────────────── */
+let allItems    = [];   // 后端返回的商品列表
+let allSkus     = {};   // itemId -> [{id,color,size,stockQty}]
+let cart        = [];   // [{skuId, itemId, itemName, skuDesc, qty, unitPrice}]
+let filterCat   = '';
+let filterText  = '';
+let skuItemPending = null; // 正在选规格的 item
+
+/* ── 加载商品 ─────────────────────────────────── */
+async function loadItems() {
+  try {
+    const res  = await fetch('/inventory/items', {
+      headers: { 'Authorization': 'Bearer ' + getToken() }
+    });
+    if (res.status === 401) { location.href = 'index.html'; return; }
+    const data = await res.json();
+    allItems   = data.data || [];
+    renderList();
+  } catch(e) { showToast('加载失败'); }
+}
+
+async function loadSkus(itemId) {
+  if (allSkus[itemId]) return allSkus[itemId];
+  const res  = await fetch(`/inventory/items/${itemId}/skus`, {
+    headers: { 'Authorization': 'Bearer ' + getToken() }
+  });
+  const data = await res.json();
+  allSkus[itemId] = data.data || [];
+  return allSkus[itemId];
+}
+
+/* ── 渲染商品列表 ─────────────────────────────── */
+function renderList() {
+  const q = filterText.trim().toLowerCase();
+  const filtered = allItems.filter(item => {
+    const matchCat  = !filterCat  || item.category === filterCat;
+    const matchText = !q || (item.itemName || '').toLowerCase().includes(q);
+    return matchCat && matchText;
+  });
+
+  const el = document.getElementById('itemList');
+  document.getElementById('emptyTip').classList.toggle('hidden', filtered.length > 0);
+  el.innerHTML = filtered.map(item => `
+    <div class="item-row">
+      <div class="item-thumb">
+        ${item.mainImageUrl ? `<img src="${item.mainImageUrl}" loading="lazy">` : '👗'}
+      </div>
+      <div class="item-body">
+        <div class="item-rname">${item.itemName || '未命名'}</div>
+        <div class="item-rprice">${item.salePrice != null ? '¥' + item.salePrice : '未定价'}</div>
+        <div class="item-rstock">${item.category || ''}</div>
+      </div>
+      <div class="add-btn" onclick="handleAdd(${item.id})">+</div>
+    </div>
+  `).join('');
+}
+
+/* ── 点击加购 ─────────────────────────────────── */
+async function handleAdd(itemId) {
+  const item = allItems.find(i => i.id === itemId);
+  if (!item) return;
+  const skus = await loadSkus(itemId);
+  if (skus.length === 0) { showToast('该商品暂无规格，请先完善库存'); return; }
+  if (skus.length === 1) {
+    addToCart(item, skus[0]);
+  } else {
+    openSkuSheet(item, skus);
+  }
+}
+
+function openSkuSheet(item, skus) {
+  skuItemPending = item;
+  document.getElementById('skuSheetTitle').textContent = item.itemName || '选择规格';
+  document.getElementById('skuOptions').innerHTML = skus.map(s => {
+    const label = [s.color, s.size].filter(Boolean).join('/') || '默认规格';
+    return `<div class="sku-option" onclick="pickSku(${s.id})">
+      <span class="sku-opt-label">${label}</span>
+      <span class="sku-opt-stock">库存 ${s.stockQty}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('skuSheet').classList.add('open');
+  document.getElementById('mask').classList.add('show');
+}
+function closeSkuSheet() {
+  document.getElementById('skuSheet').classList.remove('open');
+  document.getElementById('mask').classList.remove('show');
+  skuItemPending = null;
+}
+function pickSku(skuId) {
+  if (!skuItemPending) return;
+  const item = skuItemPending;
+  const skus = allSkus[item.id] || [];
+  const sku  = skus.find(s => s.id === skuId);
+  if (sku) addToCart(item, sku);
+  closeSkuSheet();
+}
+
+/* ── 购物车操作 ──────────────────────────────── */
+function addToCart(item, sku) {
+  const label = [sku.color, sku.size].filter(Boolean).join('/') || '默认规格';
+  const existing = cart.find(c => c.skuId === sku.id);
+  if (existing) {
+    if (existing.qty >= sku.stockQty) { showToast('已达库存上限'); return; }
+    existing.qty++;
+  } else {
+    cart.push({
+      skuId:     sku.id,
+      itemId:    item.id,
+      itemName:  item.itemName,
+      skuDesc:   label,
+      qty:       1,
+      unitPrice: item.salePrice,
+      maxStock:  sku.stockQty
+    });
+  }
+  updateCartBar();
+  showToast('已加入', 1200, 'ok');
+}
+
+function updateCartBar() {
+  const bar    = document.getElementById('cartBar');
+  const badge  = document.getElementById('cartBadge');
+  const total  = document.getElementById('cartTotal');
+  const count  = document.getElementById('cartCount');
+  const totalQty = cart.reduce((s, c) => s + c.qty, 0);
+  const totalAmt = cart.reduce((s, c) => s + c.qty * (c.unitPrice || 0), 0);
+  badge.textContent = totalQty;
+  total.textContent = '¥' + totalAmt.toFixed(2);
+  count.textContent = totalQty + '件';
+  bar.classList.toggle('empty', totalQty === 0);
+}
+
+function openCart() {
+  renderCartLines();
+  document.getElementById('cartSheet').classList.add('open');
+  document.getElementById('mask').classList.add('show');
+}
+function closeCart() {
+  document.getElementById('cartSheet').classList.remove('open');
+  document.getElementById('mask').classList.remove('show');
+}
+function closeMask() { closeCart(); closeSkuSheet(); }
+
+function renderCartLines() {
+  document.getElementById('cartLines').innerHTML = cart.length === 0
+    ? '<div style="text-align:center;padding:30px 0;color:var(--text-3)">购物清单为空</div>'
+    : cart.map((c, i) => `
+      <div class="cart-line">
+        <div class="cart-line-info">
+          <div class="cart-line-name">${c.itemName}</div>
+          <div class="cart-line-sku">${c.skuDesc}</div>
+        </div>
+        <div class="cart-qty-ctrl">
+          <div class="qty-btn" onclick="changeQty(${i},-1)">−</div>
+          <div class="qty-val">${c.qty}</div>
+          <div class="qty-btn" onclick="changeQty(${i},+1)">＋</div>
+        </div>
+        <div class="cart-line-price">¥${(c.qty * (c.unitPrice||0)).toFixed(2)}</div>
+        <div class="cart-line-del" onclick="removeFromCart(${i})">×</div>
+      </div>
+    `).join('');
+}
+function changeQty(idx, delta) {
+  cart[idx].qty = Math.max(1, Math.min(cart[idx].maxStock, cart[idx].qty + delta));
+  updateCartBar();
+  renderCartLines();
+}
+function removeFromCart(idx) {
+  cart.splice(idx, 1);
+  updateCartBar();
+  renderCartLines();
+}
+
+/* ── 提交订单 ─────────────────────────────────── */
+async function submitOrder() {
+  if (cart.length === 0) { showToast('请先选择商品'); return; }
+  const btn = document.querySelector('.submit-cart');
+  btn.textContent = '提交中…';
+  try {
+    const res  = await fetch('/orders', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        items: cart.map(c => ({ skuId: c.skuId, qty: c.qty, unitPrice: c.unitPrice })),
+        remark: ''
+      })
+    });
+    const data = await res.json();
+    if (data.code === 200) {
+      showToast('开单成功！单号：' + data.data.orderNo, 3000, 'ok');
+      cart = [];
+      updateCartBar();
+      closeCart();
+      loadItems(); // 刷新库存
+    } else {
+      showToast(data.msg || '开单失败');
+    }
+  } catch(e) {
+    showToast('网络错误：' + e.message);
+  } finally {
+    btn.textContent = '提交订单';
+  }
+}
+
+/* ── 搜索 & 分类 ──────────────────────────────── */
+document.getElementById('searchInput').addEventListener('input', e => {
+  filterText = e.target.value;
+  renderList();
+});
+
+document.getElementById('catTabs').addEventListener('click', e => {
+  const tab = e.target.closest('.cat-tab');
+  if (!tab) return;
+  document.querySelectorAll('.cat-tab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+  filterCat = tab.dataset.cat;
+  renderList();
+});
+
+/* ── 初始化 ───────────────────────────────────── */
+(function init() {
+  if (!getToken()) { location.href = 'index.html'; return; }
+  loadItems();
+})();
+</script>
+</body>
+</html>

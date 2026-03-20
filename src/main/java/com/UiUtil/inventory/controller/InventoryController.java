@@ -1,6 +1,7 @@
 package com.UiUtil.inventory.controller;
 
 import com.UiUtil.inventory.entity.ClothItem;
+import com.UiUtil.inventory.entity.ClothSku;
 import com.UiUtil.inventory.service.InventoryService;
 import com.UiUtil.shared.annotation.RequirePermission;
 import com.UiUtil.shared.result.ApiResult;
@@ -46,6 +47,19 @@ public class InventoryController {
             @RequestParam(required = false) String category,
             @RequestParam(required = false) Integer status) {
         return ApiResult.ok(inventoryService.listItems(category, status));
+    }
+
+    @RequirePermission("inventory:manage")
+    @DeleteMapping("/items/{itemId}")
+    public ApiResult<Void> deleteItem(@PathVariable Long itemId) {
+        inventoryService.deleteItem(itemId);
+        return ApiResult.ok();
+    }
+
+    @RequirePermission("inventory:manage")
+    @GetMapping("/items/{itemId}/skus")
+    public ApiResult<List<ClothSku>> listSkus(@PathVariable Long itemId) {
+        return ApiResult.ok(inventoryService.listSkusByItem(itemId));
     }
 
     @RequirePermission("inventory:manage")

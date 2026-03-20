@@ -49,4 +49,7 @@ public class SysUser {
 
     /** 累计使用 token 数 */
     private Long totalTokenUsed;
+
+    /** 是否可使用 AI 生图：1=是（默认）  0=否 */
+    private Integer canUseAi;
 }

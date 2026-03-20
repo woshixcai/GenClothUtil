@@ -5,13 +5,18 @@
 
 /* ── 全局状态 ─────────────────────────────────────────────────── */
 const S = {
-  token:         localStorage.getItem('sm_token')    || '',
-  username:      localStorage.getItem('sm_username') || '',
-  theme:         localStorage.getItem('sm_theme')    || 'gentle-luxury',
+  token:         localStorage.getItem('sm_token')       || '',
+  username:      localStorage.getItem('sm_username')    || '',
+  permissions:   JSON.parse(localStorage.getItem('sm_perms') || '[]'),
+  theme:         localStorage.getItem('sm_theme')       || 'gentle-luxury',
   clothesFiles:  [],
   refFiles:      [],
   resultImgUrls: [],
 };
+
+/* 权限辅助 */
+function hasPerm(code) { return S.permissions.includes(code); }
+function isManager()   { return hasPerm('sys:manage') || hasPerm('user:shop_manage'); }
 
 /* ── 入口 ─────────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
@@ -69,17 +74,24 @@ function renderAuthUI() {
   document.getElementById('userChip').classList.toggle('hidden', !loggedIn);
 
   if (loggedIn) {
-    document.getElementById('userName').textContent  = S.username;
+    document.getElementById('userName').textContent   = S.username;
     document.getElementById('userAvatar').textContent = S.username.charAt(0).toUpperCase();
   }
+
+  // 管理入口：有管理权限才显示
+  const adminNav = document.getElementById('adminNavItem');
+  if (adminNav) adminNav.style.display = (loggedIn && isManager()) ? '' : 'none';
+
   refreshHint();
 }
 
 function doLogout() {
-  S.token    = '';
-  S.username = '';
+  S.token       = '';
+  S.username    = '';
+  S.permissions = [];
   localStorage.removeItem('sm_token');
   localStorage.removeItem('sm_username');
+  localStorage.removeItem('sm_perms');
   renderAuthUI();
 }
 
@@ -131,10 +143,12 @@ async function doLogin() {
     const data = await res.json();
 
     if (data.code === 200 && data.data?.token) {
-      S.token    = data.data.token;
-      S.username = data.data.username;
+      S.token       = data.data.token;
+      S.username    = data.data.username;
+      S.permissions = data.data.permissions || [];
       localStorage.setItem('sm_token',    S.token);
       localStorage.setItem('sm_username', S.username);
+      localStorage.setItem('sm_perms',    JSON.stringify(S.permissions));
       renderAuthUI();
       closeModal();
       document.getElementById('fPwd').value = '';
@@ -259,6 +273,33 @@ function syncPlaceholder(ph, count) {
 }
 
 /* ================================================================
+   图片压缩（长边 ≤ 1200px，JPEG quality 0.85）
+   ================================================================ */
+function compressImage(file, maxLongEdge = 1200, quality = 0.85) {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const longEdge = Math.max(img.width, img.height);
+        if (longEdge <= maxLongEdge) { resolve(file); return; }
+        const scale   = maxLongEdge / longEdge;
+        const canvas  = document.createElement('canvas');
+        canvas.width  = Math.round(img.width  * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(blob => {
+          const name = (file.name || 'image').replace(/\.[^.]+$/, '.jpg');
+          resolve(new File([blob], name, { type: 'image/jpeg' }));
+        }, 'image/jpeg', quality);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ================================================================
    换装生成
    ================================================================ */
 function initGenerate() {
@@ -286,47 +327,76 @@ function refreshHint() {
 
 async function onGenerate() {
   if (!S.token) { openModal(); return; }
-
-  if (S.clothesFiles.length === 0) {
-    showToast('请先上传想穿的衣服图片'); return;
-  }
-  if (S.refFiles.length === 0) {
-    showToast('请上传参考穿搭图片'); return;
-  }
+  if (S.clothesFiles.length === 0) { showToast('请先上传想穿的衣服图片'); return; }
+  if (S.refFiles.length   === 0) { showToast('请上传参考穿搭图片');      return; }
 
   const style  = document.querySelector('input[name="style"]:checked')?.value  || '休闲';
   const scene  = document.querySelector('input[name="scene"]:checked')?.value  || '日常出行';
   const season = document.querySelector('input[name="season"]:checked')?.value || '春季';
 
-  const fd = new FormData();
-  fd.append('style',  style);
-  fd.append('scene',  scene);
-  fd.append('season', season);
-  S.clothesFiles.forEach((f, i) => fd.append('clothesFiles', f, `clothes_${i}.${ext(f)}`));
-  S.refFiles.forEach((f, i)      => fd.append('referenceFiles', f, `ref_${i}.${ext(f)}`));
-
-  setLoading(true);
+  setLoading(true, '正在压缩图片…', 5);
   document.getElementById('resultSection').classList.add('hidden');
 
   try {
-    const res = await fetch('/tryon/recommend', {
-      method:  'POST',
+    // ── 1. 压缩图片 ───────────────────────────────────
+    const clothCompressed = await compressImage(S.clothesFiles[0]);
+    const refCompressed   = await compressImage(S.refFiles[0]);
+
+    // ── 2. 提交任务，立即拿回 taskId ──────────────────
+    setLoadingStep('正在提交任务…', 15);
+    const fd = new FormData();
+    fd.append('style', style); fd.append('scene', scene); fd.append('season', season);
+    fd.append('clothesFiles',   clothCompressed, clothCompressed.name);
+    fd.append('referenceFiles', refCompressed,   refCompressed.name);
+
+    const submitRes = await fetch('/tryon/submit', {
+      method: 'POST',
       headers: { 'Authorization': `Bearer ${S.token}` },
-      body:    fd,
+      body: fd,
     });
+    if (submitRes.status === 401) { handleExpired(); return; }
+    const submitData = await submitRes.json();
+    if (submitData.code !== 200) throw new Error(submitData.msg || '提交失败');
 
-    if (res.status === 401) {
-      handleExpired(); return;
-    }
-    if (!res.ok) throw new Error(`请求失败 (${res.status})`);
+    const taskId = submitData.data?.taskId;
+    if (!taskId) throw new Error('未获取到任务ID');
 
-    const data = await res.json();
-    renderResult(data, style, scene, season);
+    // ── 3. 轮询结果（每 2s，最多 60s）────────────────
+    setLoadingStep('AI 换装中…', 25);
+    const result = await pollResult(taskId);
+    renderResult(result, style, scene, season);
+
   } catch (e) {
     showToast(e.message || '请求失败，请稍后重试');
   } finally {
     setLoading(false);
   }
+}
+
+/* 轮询 /tryon/result/{taskId}，返回最终结果或抛出错误 */
+async function pollResult(taskId) {
+  const MAX_POLLS = 30;   // 最多 30 次 × 2s = 60s
+  for (let i = 0; i < MAX_POLLS; i++) {
+    await new Promise(r => setTimeout(r, 2000));
+
+    // 进度条：从 25% 爬到 92%
+    const pct = Math.min(92, 25 + Math.round((i + 1) / MAX_POLLS * 67));
+    const steps = ['AI 换装中…', '上传图片中…', '模型推理中…', '即将完成…'];
+    setLoadingStep(steps[Math.min(i, steps.length - 1)], pct);
+
+    const res  = await fetch(`/tryon/result/${taskId}`, {
+      headers: { 'Authorization': `Bearer ${S.token}` },
+    });
+    if (res.status === 401) { handleExpired(); throw new Error('已登出'); }
+    const data = await res.json();
+    if (data.code !== 200) throw new Error(data.msg || '查询失败');
+
+    const d = data.data || {};
+    if (d.status === 'done')   { setLoadingStep('完成！', 100); return d; }
+    if (d.status === 'failed') throw new Error(d.message || '生成失败，请重试');
+    // status === 'pending' → 继续等
+  }
+  throw new Error('生成超时（>60s），请稍后重试');
 }
 
 function handleExpired() {
@@ -398,14 +468,20 @@ function onSave() {
 /* ================================================================
    工具函数
    ================================================================ */
-function setLoading(on) {
+function setLoading(on, stepText, pct) {
   document.getElementById('loadingWrap').classList.toggle('hidden', !on);
   document.getElementById('genBtn').disabled = on;
-  if (on) {
-    document.getElementById('genBtnText').textContent = '生成中…';
-  } else {
-    document.getElementById('genBtnText').textContent = '一键换装';
-  }
+  document.getElementById('genBtnText').textContent = on ? '生成中…' : '一键换装';
+  if (on) setLoadingStep(stepText || '正在压缩图片…', pct || 0);
+}
+
+function setLoadingStep(text, pct) {
+  const stepEl = document.getElementById('loadingStep');
+  const fillEl = document.getElementById('progressFill');
+  const pctEl  = document.getElementById('progressPct');
+  if (stepEl) stepEl.textContent  = text;
+  if (fillEl) fillEl.style.width  = pct + '%';
+  if (pctEl)  pctEl.textContent   = pct + '%';
 }
 
 let toastTimer;
