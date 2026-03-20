@@ -1,17 +1,14 @@
 package com.UiUtil.controller;
 
-import com.UiUtil.Result.HuoShanResult;
+import com.UiUtil.shared.result.HuoShanResult;
+import com.UiUtil.shared.annotation.RequirePermission;
 import com.UiUtil.service.GenImageService;
-import com.UiUtil.uitl.AliyunUtils;
-import com.UiUtil.uitl.ImageUtils;
-import com.UiUtil.uitl.VlcengineUtils;
-import com.alibaba.dashscope.exception.InputRequiredException;
-import com.alibaba.dashscope.exception.NoApiKeyException;
+import com.UiUtil.shared.util.AliyunUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +39,7 @@ public class TestController {
      * 给静态页面用的推荐接口：接收多张图，但当前只取第一张衣服图 + 第一张参考图做生成。
      * 返回结构与前端`main.js`一致：{ recommendText, recommendImgs }。
      */
+    @RequirePermission("image:recommend")
     @PostMapping("recommend")
     public Map<String, Object> recommend(@RequestParam(value = "clothesFiles", required = false) List<MultipartFile> clothesFiles,
                                          @RequestParam(value = "referenceFiles", required = false) List<MultipartFile> referenceFiles,
@@ -54,12 +52,12 @@ public class TestController {
         MultipartFile reference = (referenceFiles == null || referenceFiles.isEmpty()) ? null : referenceFiles.get(0);
         if (clothes == null || clothes.isEmpty()) {
             resp.put("recommendText", "请至少上传1张需要穿版的衣服图片");
-            resp.put("recommendImgs", List.of());
+            resp.put("recommendImgs", Collections.emptyList());
             return resp;
         }
         if (reference == null || reference.isEmpty()) {
             resp.put("recommendText", "请至少上传1张参考穿搭图片");
-            resp.put("recommendImgs", List.of());
+            resp.put("recommendImgs", Collections.emptyList());
             return resp;
         }
 
@@ -71,8 +69,12 @@ public class TestController {
             resp.put("recommendImgs", result.getImageUrls());
         } else {
             resp.put("recommendText", result.getErrorMsg() == null ? "生成失败，请稍后重试" : result.getErrorMsg());
-            resp.put("recommendImgs", List.of());
+            resp.put("recommendImgs", Collections.emptyList());
         }
+        // 把三段耗时一并返回给前端
+        resp.put("uploadSecond", result.getUploadSecond());
+        resp.put("generateSecond", result.getGenerateSecond());
+        resp.put("totalSecond", result.getTotalSecond());
         return resp;
     }
 
@@ -84,7 +86,7 @@ public class TestController {
     }
 
     private static String safe(String v) {
-        return (v == null || v.isBlank()) ? "未指定" : v.trim();
+        return (v == null || v.trim().isEmpty()) ? "未指定" : v.trim();
     }
 
     @PostMapping("testAliyunDemo")
@@ -98,16 +100,13 @@ public class TestController {
         }
     }
 
+    @RequirePermission("image:generate")
     @PostMapping("testDyDemo")
     public HuoShanResult testDyDemo(@RequestParam("demoFile") MultipartFile demoFile,
-                                    @RequestParam("closeFile") MultipartFile closeFile,// 接收前端上传的图片文件
+                                    @RequestParam("closeFile") MultipartFile closeFile,
                                     @RequestParam("text") String text) {
-        long before = System.currentTimeMillis();
-        HuoShanResult huoShanResult = genImageService.genImage(demoFile, closeFile, text);
-        long after = System.currentTimeMillis();
-        double costSeconds = Math.round((after - before) / 1000.0 * 10) / 10.0;
-        huoShanResult.setSecond(costSeconds);
-        return huoShanResult;
+        // 耗时已在 GenImageService 内部统一计算并写入 result
+        return genImageService.genImage(demoFile, closeFile, text);
     }
 
 }

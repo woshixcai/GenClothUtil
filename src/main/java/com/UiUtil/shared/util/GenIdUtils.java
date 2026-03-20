@@ -1,4 +1,4 @@
-package com.UiUtil.uitl;
+package com.UiUtil.shared.util;
 
 import java.lang.management.ManagementFactory;
 import java.net.InetAddress;
@@ -43,7 +43,6 @@ public class GenIdUtils {
         int retryCount = 0;
         while (retryCount < WORKER_ID_RETRY_COUNT) {
             try {
-                // 正常生成机器ID逻辑
                 InetAddress address = InetAddress.getLocalHost();
                 NetworkInterface ni = NetworkInterface.getByInetAddress(address);
                 if (ni == null) {
@@ -67,10 +66,8 @@ public class GenIdUtils {
             } catch (Exception e) {
                 retryCount++;
                 if (retryCount >= WORKER_ID_RETRY_COUNT) {
-                    // 重试耗尽，降级为随机生成
                     return (long) (Math.random() * MAX_WORKER_ID);
                 }
-                // 重试间隔
                 try {
                     Thread.sleep(RETRY_INTERVAL);
                 } catch (InterruptedException ie) {
@@ -79,7 +76,6 @@ public class GenIdUtils {
                 System.err.println("机器ID生成失败，重试第" + retryCount + "次，原因：" + e.getMessage());
             }
         }
-        // 兜底：随机生成
         return (long) (Math.random() * MAX_WORKER_ID);
     }
 
@@ -90,13 +86,12 @@ public class GenIdUtils {
         int retryCount = 0;
         while (retryCount < CLOCK_BACK_RETRY_COUNT) {
             try {
-                return generateId(); // 核心生成逻辑
+                return generateId();
             } catch (RuntimeException e) {
                 retryCount++;
                 if (retryCount >= CLOCK_BACK_RETRY_COUNT) {
                     throw new RuntimeException("ID生成失败（重试" + CLOCK_BACK_RETRY_COUNT + "次）：" + e.getMessage(), e);
                 }
-                // 重试间隔
                 try {
                     Thread.sleep(RETRY_INTERVAL);
                 } catch (InterruptedException ie) {
@@ -106,7 +101,6 @@ public class GenIdUtils {
                 System.err.println("ID生成失败，重试第" + retryCount + "次，原因：" + e.getMessage());
             }
         }
-        // 理论上不会走到这里，兜底抛出异常
         throw new RuntimeException("ID生成失败，重试次数耗尽");
     }
 
@@ -117,11 +111,9 @@ public class GenIdUtils {
         long currentTimestamp = System.currentTimeMillis();
         long lastTimestamp = LAST_TIMESTAMP.get();
 
-        // 时钟回摆处理
         if (currentTimestamp < lastTimestamp) {
             long offset = lastTimestamp - currentTimestamp;
             if (offset <= 5) {
-                // 小幅度回摆：sleep补偿
                 try {
                     Thread.sleep(offset + 1);
                     currentTimestamp = System.currentTimeMillis();
@@ -130,14 +122,12 @@ public class GenIdUtils {
                     throw new RuntimeException("时钟回摆补偿时线程中断", e);
                 }
             } else {
-                // 大幅度回摆：抛出异常（触发重试）
                 throw new RuntimeException(
                         String.format("系统时钟回摆异常！上次时间戳：%d，当前时间戳：%d", lastTimestamp, currentTimestamp)
                 );
             }
         }
 
-        // 序列号生成
         if (currentTimestamp == lastTimestamp) {
             long sequence = SEQUENCE.incrementAndGet() & MAX_SEQUENCE;
             if (sequence == 0) {
@@ -147,13 +137,10 @@ public class GenIdUtils {
             SEQUENCE.set(0L);
         }
 
-        // 更新最后时间戳
         if (!LAST_TIMESTAMP.compareAndSet(lastTimestamp, currentTimestamp)) {
-            // CAS失败（多线程竞争），抛出异常触发重试
             throw new RuntimeException("时间戳更新失败，多线程竞争冲突");
         }
 
-        // 组装ID
         return (currentTimestamp - START_TIMESTAMP) << TIMESTAMP_SHIFT
                 | (WORKER_ID << WORKER_ID_SHIFT)
                 | SEQUENCE.get();
@@ -170,9 +157,5 @@ public class GenIdUtils {
         return timestamp;
     }
 
-    /**
-     * 私有构造方法
-     */
     private GenIdUtils() {}
-
 }

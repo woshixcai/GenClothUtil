@@ -1,11 +1,11 @@
 package com.UiUtil.service;
 
-import com.UiUtil.Result.HuoShanResult;
+import com.UiUtil.shared.result.HuoShanResult;
 import com.UiUtil.entity.UploadImageCache;
 import com.UiUtil.mapper.UploadImageCacheMapper;
-import com.UiUtil.uitl.GenIdUtils;
-import com.UiUtil.uitl.ImageUtils;
-import com.UiUtil.uitl.VlcengineUtils;
+import com.UiUtil.shared.util.GenIdUtils;
+import com.UiUtil.shared.util.ImageUtils;
+import com.UiUtil.shared.util.VlcengineUtils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -32,31 +32,51 @@ public class GenImageService {
     UploadImageCacheMapper uploadImageCacheMapper;
 
     public HuoShanResult genImage(MultipartFile demoFile,
-                                  MultipartFile closeFile,// 接收前端上传的图片文件
+                                  MultipartFile closeFile,
                                   String text) {
+        long totalStart = System.currentTimeMillis();
         try {
+            // ── 1. MD5 去重查缓存 ──────────────────────────────────────────
             String demoMd5 = ImageUtils.multipartFileToMd5(demoFile);
             String closeMd5 = ImageUtils.multipartFileToMd5(closeFile);
             LambdaQueryWrapper<UploadImageCache> queryWrapper = new LambdaQueryWrapper<>();
             queryWrapper.in(UploadImageCache::getImageMd5, demoMd5, closeMd5);
             List<UploadImageCache> cacheList = uploadImageCacheMapper.selectList(queryWrapper);
-
             Map<String, String> md5ToUrlMap = cacheList.stream()
                     .collect(Collectors.toMap(UploadImageCache::getImageMd5, UploadImageCache::getTosUrl));
 
             String demoFileUrl = md5ToUrlMap.get(demoMd5);
             String closeFileUrl = md5ToUrlMap.get(closeMd5);
 
-            if (demoFileUrl == null ) {
+            // ── 2. 上传到 TOS（未命中缓存才上传，记录上传耗时）────────────
+            long uploadStart = System.currentTimeMillis();
+            if (demoFileUrl == null) {
                 demoFileUrl = imageUtils.uploadFileToHuoShan(demoFile);
-                uploadImageCacheMapper.insert(new UploadImageCache(GenIdUtils.getSnowflakeId(),demoMd5,demoFileUrl,new Date(),new Date(),null));
+                uploadImageCacheMapper.insert(new UploadImageCache(
+                        GenIdUtils.getSnowflakeId(), demoMd5, demoFileUrl, new Date(), new Date(), null));
             }
             if (closeFileUrl == null) {
                 closeFileUrl = imageUtils.uploadFileToHuoShan(closeFile);
-                uploadImageCacheMapper.insert(new UploadImageCache(GenIdUtils.getSnowflakeId(),closeMd5,closeFileUrl,new Date(),new Date(),null));
+                uploadImageCacheMapper.insert(new UploadImageCache(
+                        GenIdUtils.getSnowflakeId(), closeMd5, closeFileUrl, new Date(), new Date(), null));
             }
-            HuoShanResult huoShanResult = vlcengineUtils.generateTryonImage(demoFileUrl, closeFileUrl, text);
-            return huoShanResult;
+            long uploadEnd = System.currentTimeMillis();
+
+            // ── 3. 调用大模型生图（记录生图耗时）────────────────────────────
+            long generateStart = System.currentTimeMillis();
+            HuoShanResult result = vlcengineUtils.generateTryonImage(demoFileUrl, closeFileUrl, text);
+            long generateEnd = System.currentTimeMillis();
+
+            // ── 4. 汇总耗时写入结果 ──────────────────────────────────────────
+            long totalEnd = System.currentTimeMillis();
+            result.setUploadSecond(HuoShanResult.toSeconds(uploadEnd - uploadStart));
+            result.setGenerateSecond(HuoShanResult.toSeconds(generateEnd - generateStart));
+            result.setTotalSecond(HuoShanResult.toSeconds(totalEnd - totalStart));
+
+            System.out.printf("[GenImageService] 上传耗时=%.1fs  生图耗时=%.1fs  总耗时=%.1fs%n",
+                    result.getUploadSecond(), result.getGenerateSecond(), result.getTotalSecond());
+
+            return result;
 
         } catch (IllegalArgumentException e) {
             throw new RuntimeException("图片MD5生成失败：" + e.getMessage(), e);

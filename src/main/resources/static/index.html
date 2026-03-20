@@ -1,96 +1,234 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="gentle-luxury">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI穿版</title>
-    <link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#FDFAF7">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>StyleMe · 智能换装</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<div class="container">
-    <!-- 页面标题 -->
-    <header class="header">
-        <h1>🎀 智能穿搭推荐</h1>
-        <p>上传衣服图片+参考穿搭，获取专属推荐</p>
-    </header>
 
-    <!-- 筛选条件区域 -->
-    <section class="filter-section">
-        <div class="filter-item">
-            <label for="style">穿搭风格：</label>
-            <select id="style">
-                <option value="休闲">休闲</option>
-                <option value="通勤">通勤</option>
-                <option value="甜美">甜美</option>
-                <option value="酷飒">酷飒</option>
-                <option value="复古">复古</option>
-            </select>
+  <!-- ── Header ─────────────────────────────── -->
+  <header class="header" id="header">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-mark">✦</span>
+        <span class="logo-name">StyleMe</span>
+        <span class="logo-tag">智能换装</span>
+      </div>
+      <div class="header-right">
+        <!-- 主题切换 -->
+        <div class="theme-bar" id="themeBar">
+          <button class="tdot active" data-theme="gentle-luxury" title="温柔轻奢"></button>
+          <button class="tdot" data-theme="sweet-fresh" title="甜美清新"></button>
+          <button class="tdot" data-theme="premium" title="高级质感"></button>
         </div>
-        <div class="filter-item">
-            <label for="scene">适用场景：</label>
-            <select id="scene">
-                <option value="日常出行">日常出行</option>
-                <option value="职场办公">职场办公</option>
-                <option value="约会">约会</option>
-                <option value="聚会">聚会</option>
-                <option value="运动">运动</option>
-            </select>
+        <!-- 登录状态 -->
+        <div class="auth-wrap">
+          <div class="user-chip hidden" id="userChip">
+            <span class="user-avatar" id="userAvatar">A</span>
+            <span class="user-name" id="userName"></span>
+            <button class="btn-logout" id="logoutBtn">退出</button>
+          </div>
+          <button class="btn-login" id="loginBtn">登录</button>
         </div>
-        <div class="filter-item">
-            <label for="season">季节：</label>
-            <select id="season">
-                <option value="春季">春季</option>
-                <option value="夏季">夏季</option>
-                <option value="秋季">秋季</option>
-                <option value="冬季">冬季</option>
-            </select>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Hero ───────────────────────────────── -->
+  <section class="hero">
+    <div class="hero-body">
+      <div class="hero-badge">✦ &nbsp;AI 一键试衣</div>
+      <h1 class="hero-title">让每一件衣服<br>都值得被看见</h1>
+      <p class="hero-desc">上传衣服 + 参考穿搭，AI 为你秒出真实试穿效果</p>
+    </div>
+    <div class="hero-deco" aria-hidden="true">
+      <div class="deco-blob deco-blob-1"></div>
+      <div class="deco-blob deco-blob-2"></div>
+      <div class="deco-blob deco-blob-3"></div>
+    </div>
+  </section>
+
+  <!-- ── Main ───────────────────────────────── -->
+  <main class="main" id="main">
+
+    <!-- Step 01: Upload -->
+    <section class="block">
+      <div class="block-label">
+        <span class="block-num">01</span>
+        <span class="block-title">上传图片</span>
+        <span class="block-tip">支持 JPG / PNG / WEBP</span>
+      </div>
+      <div class="upload-row">
+
+        <!-- 衣服 -->
+        <div class="ucard" id="clothesCard">
+          <div class="ucard-head">
+            <div class="ucard-icon">👗</div>
+            <div>
+              <div class="ucard-name">想穿的衣服</div>
+              <div class="ucard-limit">最多 3 张</div>
+            </div>
+          </div>
+          <div class="uzone" id="clothesZone">
+            <input type="file" id="clothesInput" accept="image/*" multiple hidden>
+            <div class="uzone-ph" id="clothesPh">
+              <div class="uzone-plus">＋</div>
+              <span>点击或拖入图片</span>
+            </div>
+            <div class="ugrid" id="clothesGrid"></div>
+          </div>
         </div>
+
+        <!-- 参考穿搭 -->
+        <div class="ucard" id="refCard">
+          <div class="ucard-head">
+            <div class="ucard-icon">📸</div>
+            <div>
+              <div class="ucard-name">参考穿搭</div>
+              <div class="ucard-limit">最多 3 张（可选）</div>
+            </div>
+          </div>
+          <div class="uzone" id="refZone">
+            <input type="file" id="refInput" accept="image/*" multiple hidden>
+            <div class="uzone-ph" id="refPh">
+              <div class="uzone-plus">＋</div>
+              <span>点击或拖入图片</span>
+            </div>
+            <div class="ugrid" id="refGrid"></div>
+          </div>
+        </div>
+
+      </div>
     </section>
 
-    <!-- 图片上传区域 -->
-    <section class="upload-section">
-        <!-- 穿版衣服上传 -->
-        <div class="upload-card">
-            <h3>📸 上传需要穿版的衣服（最多3张）</h3>
-            <div class="upload-area" id="clothesUploadArea">
-                <input type="file" id="clothesFileInput" accept="image/*" multiple hidden>
-                <button class="upload-btn" onclick="document.getElementById('clothesFileInput').click()">选择图片</button>
-            </div>
-            <div class="preview-list" id="clothesPreviewList"></div>
+    <!-- Step 02: Preferences -->
+    <section class="block">
+      <div class="block-label">
+        <span class="block-num">02</span>
+        <span class="block-title">穿搭偏好</span>
+      </div>
+      <div class="pref-stack">
+
+        <div class="pref-row">
+          <span class="pref-label">风格</span>
+          <div class="pills">
+            <label class="pill"><input type="radio" name="style" value="休闲" checked><span>休闲</span></label>
+            <label class="pill"><input type="radio" name="style" value="通勤"><span>通勤</span></label>
+            <label class="pill"><input type="radio" name="style" value="甜美"><span>甜美</span></label>
+            <label class="pill"><input type="radio" name="style" value="酷飒"><span>酷飒</span></label>
+            <label class="pill"><input type="radio" name="style" value="复古"><span>复古</span></label>
+          </div>
         </div>
 
-        <!-- 参考穿搭上传 -->
-        <div class="upload-card">
-            <h3>📸 上传参考穿搭（最多3张）</h3>
-            <div class="upload-area" id="referenceUploadArea">
-                <input type="file" id="referenceFileInput" accept="image/*" multiple hidden>
-                <button class="upload-btn" onclick="document.getElementById('referenceFileInput').click()">选择图片</button>
-            </div>
-            <div class="preview-list" id="referencePreviewList"></div>
+        <div class="pref-row">
+          <span class="pref-label">场景</span>
+          <div class="pills">
+            <label class="pill"><input type="radio" name="scene" value="日常出行" checked><span>日常出行</span></label>
+            <label class="pill"><input type="radio" name="scene" value="职场办公"><span>职场办公</span></label>
+            <label class="pill"><input type="radio" name="scene" value="约会"><span>约会</span></label>
+            <label class="pill"><input type="radio" name="scene" value="聚会"><span>聚会</span></label>
+            <label class="pill"><input type="radio" name="scene" value="运动"><span>运动</span></label>
+          </div>
         </div>
+
+        <div class="pref-row">
+          <span class="pref-label">季节</span>
+          <div class="pills">
+            <label class="pill"><input type="radio" name="season" value="春季" checked><span>春季</span></label>
+            <label class="pill"><input type="radio" name="season" value="夏季"><span>夏季</span></label>
+            <label class="pill"><input type="radio" name="season" value="秋季"><span>秋季</span></label>
+            <label class="pill"><input type="radio" name="season" value="冬季"><span>冬季</span></label>
+          </div>
+        </div>
+
+      </div>
     </section>
 
-    <!-- 提交按钮 -->
-    <button id="recommendBtn" class="submit-btn">获取穿搭推荐</button>
+    <!-- Generate -->
+    <section class="gen-section">
+      <button class="btn-gen" id="genBtn">
+        <span class="btn-gen-star">✦</span>
+        <span id="genBtnText">一键换装</span>
+      </button>
+      <p class="gen-hint" id="genHint">请先上传衣服图片</p>
+    </section>
 
-    <!-- 加载状态 -->
-    <div id="loading" class="loading hidden">正在为你分析穿搭...</div>
+    <!-- Loading -->
+    <div class="loading-wrap hidden" id="loadingWrap">
+      <div class="loading-card">
+        <div class="spinner"></div>
+        <p class="loading-title">AI 正在为你换装</p>
+        <p class="loading-sub">通常需要 10 ~ 30 秒，请稍等 ☕</p>
+      </div>
+    </div>
 
-    <!-- 穿搭推荐结果区域 -->
+    <!-- Result -->
     <section class="result-section hidden" id="resultSection">
-        <h2>✅ 为你推荐的穿搭方案</h2>
-        <div class="result-content" id="resultContent">
-            <!-- 文字描述 -->
-            <div class="result-text" id="resultText"></div>
-            <!-- 推荐图片 -->
-            <div class="result-img-list" id="resultImgList"></div>
+      <div class="block-label">
+        <span class="block-num">✦</span>
+        <span class="block-title">换装效果</span>
+      </div>
+      <div class="result-card">
+        <div class="result-imgs" id="resultImgs"></div>
+        <div class="result-info">
+          <p class="result-desc" id="resultDesc"></p>
+          <div class="result-chips" id="resultChips"></div>
+          <div class="result-btns">
+            <button class="btn-outline" id="regenBtn">重新生成</button>
+            <button class="btn-solid" id="saveBtn">保存图片</button>
+          </div>
         </div>
+      </div>
     </section>
 
-    <!-- 错误提示区域 -->
-    <div class="error-tip hidden" id="errorTip">请求失败，请稍后重试！</div>
-</div>
+    <!-- Error Toast -->
+    <div class="toast hidden" id="toast">
+      <span class="toast-icon">⚠</span>
+      <span id="toastMsg"></span>
+    </div>
 
-<script src="js/main.js"></script>
+  </main>
+
+  <!-- ── Footer ─────────────────────────────── -->
+  <footer class="footer">
+    <div class="footer-inner">
+      <span class="footer-brand">✦ StyleMe</span>
+      <span class="footer-copy">让每一件衣服都值得被看见</span>
+    </div>
+  </footer>
+
+  <!-- ── Login Modal ────────────────────────── -->
+  <div class="modal-bg hidden" id="modalBg">
+    <div class="modal" id="modal">
+      <button class="modal-x" id="modalX" aria-label="关闭">×</button>
+      <div class="modal-top">
+        <div class="modal-icon">✦</div>
+        <h2 class="modal-title">欢迎回来</h2>
+        <p class="modal-sub">登录后体验 AI 智能换装</p>
+      </div>
+      <form class="modal-form" id="loginForm" autocomplete="on">
+        <div class="field">
+          <label class="field-label" for="fUser">用户名</label>
+          <input class="field-input" type="text" id="fUser" placeholder="请输入用户名" autocomplete="username">
+        </div>
+        <div class="field">
+          <label class="field-label" for="fPwd">密码</label>
+          <input class="field-input" type="password" id="fPwd" placeholder="请输入密码" autocomplete="current-password">
+        </div>
+        <p class="field-error hidden" id="loginErr"></p>
+        <button type="submit" class="btn-gen" style="width:100%;margin-top:4px" id="loginSubmit">
+          <span id="loginSubmitText">登 录</span>
+        </button>
+      </form>
+      <p class="modal-note">初始账号：admin / admin123</p>
+    </div>
+  </div>
+
+  <script src="js/main.js"></script>
 </body>
 </html>

@@ -1,193 +1,422 @@
-// 全局变量存储上传的文件
-let clothesFiles = []; // 穿版衣服文件
-let referenceFiles = []; // 参考穿搭文件
+/* ================================================================
+   StyleMe · main.js
+   功能：主题切换 / JWT 登录 / 图片上传预览 / AI 换装请求 / 结果展示
+   ================================================================ */
 
-// 页面加载完成后初始化
-window.onload = function() {
-    // 获取DOM元素
-    const recommendBtn = document.getElementById('recommendBtn');
-    const loading = document.getElementById('loading');
-    const resultSection = document.getElementById('resultSection');
-    const resultText = document.getElementById('resultText');
-    const resultImgList = document.getElementById('resultImgList');
-    const errorTip = document.getElementById('errorTip');
-    const styleSelect = document.getElementById('style');
-    const sceneSelect = document.getElementById('scene');
-    const seasonSelect = document.getElementById('season');
-
-    // 1. 穿版衣服图片上传处理
-    const clothesFileInput = document.getElementById('clothesFileInput');
-    const clothesPreviewList = document.getElementById('clothesPreviewList');
-    clothesFileInput.addEventListener('change', function(e) {
-        handleFileUpload(e, clothesFiles, clothesPreviewList, 3, 'clothes');
-    });
-
-    // 2. 参考穿搭图片上传处理
-    const referenceFileInput = document.getElementById('referenceFileInput');
-    const referencePreviewList = document.getElementById('referencePreviewList');
-    referenceFileInput.addEventListener('change', function(e) {
-        handleFileUpload(e, referenceFiles, referencePreviewList, 3, 'reference');
-    });
-
-    // 3. 提交按钮点击事件
-    recommendBtn.addEventListener('click', function() {
-        // 校验是否选择了至少1张图片
-        if (clothesFiles.length === 0) {
-            alert('请至少上传1张需要穿版的衣服图片！');
-            return;
-        }
-
-        // 展示加载状态
-        loading.classList.remove('hidden');
-        resultSection.classList.add('hidden');
-        errorTip.classList.add('hidden');
-        resultText.innerHTML = '';
-        resultImgList.innerHTML = '';
-
-        // 构建FormData（支持文件上传）
-        const formData = new FormData();
-        // 添加筛选条件
-        formData.append('style', styleSelect.value);
-        formData.append('scene', sceneSelect.value);
-        formData.append('season', seasonSelect.value);
-        // 添加穿版衣服图片
-        clothesFiles.forEach((file, index) => {
-            formData.append('clothesFiles', file, `clothes_${index}.${file.name.split('.').pop()}`);
-        });
-        // 添加参考穿搭图片
-        referenceFiles.forEach((file, index) => {
-            formData.append('referenceFiles', file, `reference_${index}.${file.name.split('.').pop()}`);
-        });
-
-        // 调用后端接口（与后端`/TestController/recommend`匹配）
-        fetch('/TestController/recommend', {
-            method: 'POST', // 文件上传必须用POST
-            body: formData,
-            // 不要设置Content-Type，浏览器会自动添加multipart/form-data边界
-        })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('接口请求失败');
-                }
-                return response.json(); // 后端返回JSON格式（文字+图片地址）
-            })
-            .then(data => {
-                // 隐藏加载状态，展示结果
-                loading.classList.add('hidden');
-                resultSection.classList.remove('hidden');
-
-                // 渲染文字结果
-                resultText.innerHTML = data.recommendText || '暂无穿搭推荐描述';
-
-                // 渲染图片结果
-                if (data.recommendImgs && data.recommendImgs.length > 0) {
-                    data.recommendImgs.forEach(imgUrl => {
-                        const imgItem = document.createElement('div');
-                        imgItem.className = 'result-img-item';
-                        imgItem.innerHTML = `<img src="${imgUrl}" alt="穿搭推荐图片">`;
-                        resultImgList.appendChild(imgItem);
-                    });
-                } else {
-                    resultImgList.innerHTML = '<p>暂无推荐图片</p>';
-                }
-            })
-            .catch(error => {
-                // 处理错误
-                loading.classList.add('hidden');
-                errorTip.classList.remove('hidden');
-                console.error('请求错误：', error);
-            });
-    });
+/* ── 全局状态 ─────────────────────────────────────────────────── */
+const S = {
+  token:         localStorage.getItem('sm_token')    || '',
+  username:      localStorage.getItem('sm_username') || '',
+  theme:         localStorage.getItem('sm_theme')    || 'gentle-luxury',
+  clothesFiles:  [],
+  refFiles:      [],
+  resultImgUrls: [],
 };
 
-/**
- * 处理文件上传和预览
- * @param {Event} e - 文件选择事件
- * @param {Array} fileList - 存储文件的数组
- * @param {HTMLElement} previewList - 预览容器
- * @param {Number} maxCount - 最大上传数量
- * @param {String} type - 类型（clothes/reference）
- */
-function handleFileUpload(e, fileList, previewList, maxCount, type) {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+/* ── 入口 ─────────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  initTheme();
+  initAuth();
+  initUpload();
+  initGenerate();
+  initModal();
+});
 
-    // 校验数量
-    const remainCount = maxCount - fileList.length;
-    if (files.length > remainCount) {
-        alert(`最多只能上传${maxCount}张${type === 'clothes' ? '穿版衣服' : '参考穿搭'}图片！`);
-        return;
-    }
+/* ================================================================
+   主题切换
+   ================================================================ */
+function initTheme() {
+  applyTheme(S.theme);
 
-    // 处理文件
-    for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        // 只允许图片文件
-        if (!file.type.startsWith('image/')) {
-            alert('请选择图片文件！');
-            continue;
-        }
-
-        // 添加到文件数组
-        fileList.push(file);
-
-        // 创建预览项
-        const previewItem = document.createElement('div');
-        previewItem.className = 'preview-item';
-        previewItem.dataset.index = fileList.length - 1;
-        previewItem.dataset.type = type;
-
-        // 生成图片预览URL
-        const reader = new FileReader();
-        reader.onload = function(event) {
-            previewItem.innerHTML = `
-                <img src="${event.target.result}" alt="预览图片">
-                <button class="delete-btn" onclick="deletePreviewItem('${type}', ${previewItem.dataset.index})">×</button>
-            `;
-        };
-        reader.readAsDataURL(file);
-
-        // 添加到预览容器
-        previewList.appendChild(previewItem);
-    }
-
-    // 清空input值，允许重复选择同一文件
-    e.target.value = '';
+  document.querySelectorAll('.tdot').forEach(dot => {
+    dot.addEventListener('click', () => {
+      applyTheme(dot.dataset.theme);
+    });
+  });
 }
 
-/**
- * 删除预览项
- * @param {String} type - 类型（clothes/reference）
- * @param {Number} index - 索引
- */
-function deletePreviewItem(type, index) {
-    // 删除文件数组中的文件
-    if (type === 'clothes') {
-        clothesFiles.splice(index, 1);
-    } else {
-        referenceFiles.splice(index, 1);
-    }
+function applyTheme(theme) {
+  S.theme = theme;
+  document.documentElement.dataset.theme = theme;
+  localStorage.setItem('sm_theme', theme);
 
-    // 删除预览DOM，并重新更新索引
-    const previewList = document.getElementById(`${type}PreviewList`);
-    previewList.innerHTML = '';
-    const fileList = type === 'clothes' ? clothesFiles : referenceFiles;
+  document.querySelectorAll('.tdot').forEach(d => {
+    d.classList.toggle('active', d.dataset.theme === theme);
+  });
 
-    // 重新渲染预览
-    fileList.forEach((file, newIndex) => {
-        const previewItem = document.createElement('div');
-        previewItem.className = 'preview-item';
-        previewItem.dataset.index = newIndex;
-        previewItem.dataset.type = type;
+  // 更新移动端状态栏颜色
+  const colors = {
+    'gentle-luxury': '#FDFAF7',
+    'sweet-fresh':   '#FFF8FC',
+    'premium':       '#F8F6F3',
+  };
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = colors[theme] || '#FDFAF7';
+}
 
-        const reader = new FileReader();
-        reader.onload = function(event) {
-            previewItem.innerHTML = `
-                <img src="${event.target.result}" alt="预览图片">
-                <button class="delete-btn" onclick="deletePreviewItem('${type}', ${newIndex})">×</button>
-            `;
-            previewList.appendChild(previewItem);
-        };
-        reader.readAsDataURL(file);
+/* ================================================================
+   登录 / 登出
+   ================================================================ */
+function initAuth() {
+  document.getElementById('loginBtn').addEventListener('click', openModal);
+  document.getElementById('logoutBtn').addEventListener('click', doLogout);
+  renderAuthUI();
+}
+
+function renderAuthUI() {
+  const loggedIn = !!S.token;
+  document.getElementById('loginBtn').classList.toggle('hidden', loggedIn);
+  document.getElementById('userChip').classList.toggle('hidden', !loggedIn);
+
+  if (loggedIn) {
+    document.getElementById('userName').textContent  = S.username;
+    document.getElementById('userAvatar').textContent = S.username.charAt(0).toUpperCase();
+  }
+  refreshHint();
+}
+
+function doLogout() {
+  S.token    = '';
+  S.username = '';
+  localStorage.removeItem('sm_token');
+  localStorage.removeItem('sm_username');
+  renderAuthUI();
+}
+
+/* ================================================================
+   登录模态框
+   ================================================================ */
+function initModal() {
+  document.getElementById('modalX').addEventListener('click', closeModal);
+  document.getElementById('modalBg').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeModal();
+  });
+  document.getElementById('loginForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    await doLogin();
+  });
+}
+
+function openModal() {
+  document.getElementById('modalBg').classList.remove('hidden');
+  document.getElementById('loginErr').classList.add('hidden');
+  document.getElementById('fUser').focus();
+}
+
+function closeModal() {
+  document.getElementById('modalBg').classList.add('hidden');
+}
+
+async function doLogin() {
+  const username = document.getElementById('fUser').value.trim();
+  const password = document.getElementById('fPwd').value;
+  const errEl    = document.getElementById('loginErr');
+  const submitEl = document.getElementById('loginSubmit');
+
+  if (!username || !password) {
+    showLoginErr('请填写用户名和密码');
+    return;
+  }
+
+  submitEl.textContent = '登录中…';
+  submitEl.disabled    = true;
+  errEl.classList.add('hidden');
+
+  try {
+    const res  = await fetch('/auth/login', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ username, password }),
     });
+    const data = await res.json();
+
+    if (data.code === 200 && data.data?.token) {
+      S.token    = data.data.token;
+      S.username = data.data.username;
+      localStorage.setItem('sm_token',    S.token);
+      localStorage.setItem('sm_username', S.username);
+      renderAuthUI();
+      closeModal();
+      document.getElementById('fPwd').value = '';
+    } else {
+      showLoginErr(data.msg || '用户名或密码错误');
+    }
+  } catch {
+    showLoginErr('网络错误，请稍后重试');
+  } finally {
+    submitEl.textContent = '登 录';
+    submitEl.disabled    = false;
+  }
+}
+
+function showLoginErr(msg) {
+  const el = document.getElementById('loginErr');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+/* ================================================================
+   图片上传 & 预览
+   ================================================================ */
+function initUpload() {
+  setupZone({
+    inputId:   'clothesInput',
+    zoneId:    'clothesZone',
+    phId:      'clothesPh',
+    gridId:    'clothesGrid',
+    fileList:  S.clothesFiles,
+    max:       3,
+  });
+  setupZone({
+    inputId:   'refInput',
+    zoneId:    'refZone',
+    phId:      'refPh',
+    gridId:    'refGrid',
+    fileList:  S.refFiles,
+    max:       3,
+  });
+}
+
+function setupZone({ inputId, zoneId, phId, gridId, fileList, max }) {
+  const input = document.getElementById(inputId);
+  const zone  = document.getElementById(zoneId);
+  const ph    = document.getElementById(phId);
+  const grid  = document.getElementById(gridId);
+
+  // 点击上传区域 → 打开文件选择（避免点到删除按钮时触发）
+  zone.addEventListener('click', e => {
+    if (!e.target.closest('.uitem-del')) input.click();
+  });
+
+  input.addEventListener('change', e => {
+    addFiles(e.target.files, fileList, max, grid, ph);
+    input.value = '';
+  });
+
+  // 拖拽上传
+  zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', ()  => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    addFiles(e.dataTransfer.files, fileList, max, grid, ph);
+  });
+}
+
+function addFiles(fileListRaw, fileList, max, grid, ph) {
+  const remaining = max - fileList.length;
+  if (remaining <= 0) { showToast(`最多上传 ${max} 张`); return; }
+
+  let added = 0;
+  for (const file of fileListRaw) {
+    if (added >= remaining) break;
+    if (!file.type.startsWith('image/')) continue;
+    fileList.push(file);
+    appendPreview(file, fileList, fileList.length - 1, grid, ph);
+    added++;
+  }
+  if (fileListRaw.length > remaining) {
+    showToast(`最多还能上传 ${remaining} 张`);
+  }
+  syncPlaceholder(ph, fileList.length);
+  refreshHint();
+}
+
+function appendPreview(file, fileList, index, grid, ph) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const item = document.createElement('div');
+    item.className = 'uitem';
+    item.dataset.index = String(index);
+    item.innerHTML = `
+      <img src="${e.target.result}" alt="预览图">
+      <button class="uitem-del" title="删除">×</button>
+    `;
+    item.querySelector('.uitem-del').addEventListener('click', ev => {
+      ev.stopPropagation();
+      fileList.splice(parseInt(item.dataset.index), 1);
+      rebuildGrid(fileList, grid, ph);
+      refreshHint();
+    });
+    grid.appendChild(item);
+    syncPlaceholder(ph, fileList.length);
+  };
+  reader.readAsDataURL(file);
+}
+
+function rebuildGrid(fileList, grid, ph) {
+  grid.innerHTML = '';
+  fileList.forEach((f, i) => appendPreview(f, fileList, i, grid, ph));
+  syncPlaceholder(ph, fileList.length);
+}
+
+function syncPlaceholder(ph, count) {
+  if (count > 0) {
+    ph.style.visibility = 'hidden';
+  } else {
+    ph.style.visibility = 'visible';
+  }
+}
+
+/* ================================================================
+   换装生成
+   ================================================================ */
+function initGenerate() {
+  document.getElementById('genBtn').addEventListener('click',   onGenerate);
+  document.getElementById('regenBtn').addEventListener('click', onGenerate);
+  document.getElementById('saveBtn').addEventListener('click',  onSave);
+}
+
+function refreshHint() {
+  const hint = document.getElementById('genHint');
+  if (!S.token) {
+    hint.textContent = '登录后即可使用 AI 换装功能';
+    return;
+  }
+  if (S.clothesFiles.length === 0) {
+    hint.textContent = '请先上传想穿的衣服图片';
+    return;
+  }
+  if (S.refFiles.length === 0) {
+    hint.textContent = '请上传参考穿搭图片';
+    return;
+  }
+  hint.textContent = '点击开始，AI 秒出试穿效果';
+}
+
+async function onGenerate() {
+  if (!S.token) { openModal(); return; }
+
+  if (S.clothesFiles.length === 0) {
+    showToast('请先上传想穿的衣服图片'); return;
+  }
+  if (S.refFiles.length === 0) {
+    showToast('请上传参考穿搭图片'); return;
+  }
+
+  const style  = document.querySelector('input[name="style"]:checked')?.value  || '休闲';
+  const scene  = document.querySelector('input[name="scene"]:checked')?.value  || '日常出行';
+  const season = document.querySelector('input[name="season"]:checked')?.value || '春季';
+
+  const fd = new FormData();
+  fd.append('style',  style);
+  fd.append('scene',  scene);
+  fd.append('season', season);
+  S.clothesFiles.forEach((f, i) => fd.append('clothesFiles', f, `clothes_${i}.${ext(f)}`));
+  S.refFiles.forEach((f, i)      => fd.append('referenceFiles', f, `ref_${i}.${ext(f)}`));
+
+  setLoading(true);
+  document.getElementById('resultSection').classList.add('hidden');
+
+  try {
+    const res = await fetch('/TestController/recommend', {
+      method:  'POST',
+      headers: { 'Authorization': `Bearer ${S.token}` },
+      body:    fd,
+    });
+
+    if (res.status === 401) {
+      handleExpired(); return;
+    }
+    if (!res.ok) throw new Error(`请求失败 (${res.status})`);
+
+    const data = await res.json();
+    renderResult(data, style, scene, season);
+  } catch (e) {
+    showToast(e.message || '请求失败，请稍后重试');
+  } finally {
+    setLoading(false);
+  }
+}
+
+function handleExpired() {
+  setLoading(false);
+  doLogout();
+  showToast('登录已过期，请重新登录');
+  openModal();
+}
+
+/* ================================================================
+   结果渲染
+   ================================================================ */
+function renderResult(data, style, scene, season) {
+  const imgs  = data.recommendImgs || data.imageUrls || [];
+  const desc  = data.recommendText || `${style}风格试衣效果已生成`;
+
+  S.resultImgUrls = imgs;
+
+  // 图片区域
+  const imgArea = document.getElementById('resultImgs');
+  imgArea.innerHTML = '';
+  if (imgs.length === 0) {
+    imgArea.innerHTML = '<div style="padding:48px;text-align:center;color:var(--text-3);width:100%">暂无图片返回</div>';
+  } else {
+    imgs.forEach(url => {
+      const item = document.createElement('div');
+      item.className = 'result-img-item';
+      const img = new Image();
+      img.src = url;
+      img.alt = '换装效果图';
+      item.appendChild(img);
+      imgArea.appendChild(item);
+    });
+  }
+
+  // 描述
+  document.getElementById('resultDesc').textContent = desc;
+
+  // 耗时标签
+  const chips = document.getElementById('resultChips');
+  chips.innerHTML = '';
+  const stats = [
+    data.uploadSecond   != null ? `📤 上传 ${data.uploadSecond}s`   : null,
+    data.generateSecond != null ? `🎨 生图 ${data.generateSecond}s` : null,
+    data.totalSecond    != null ? `⏱ 总耗时 ${data.totalSecond}s`  : null,
+    data.tokenUsage     != null ? `🔢 Token ${data.tokenUsage}`     : null,
+  ].filter(Boolean);
+
+  stats.forEach(t => {
+    const c = document.createElement('span');
+    c.className   = 'chip';
+    c.textContent = t;
+    chips.appendChild(c);
+  });
+
+  // 展示并滚动到结果
+  const section = document.getElementById('resultSection');
+  section.classList.remove('hidden');
+  setTimeout(() => section.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+}
+
+function onSave() {
+  if (S.resultImgUrls.length === 0) return;
+  S.resultImgUrls.forEach(url => window.open(url, '_blank'));
+}
+
+/* ================================================================
+   工具函数
+   ================================================================ */
+function setLoading(on) {
+  document.getElementById('loadingWrap').classList.toggle('hidden', !on);
+  document.getElementById('genBtn').disabled = on;
+  if (on) {
+    document.getElementById('genBtnText').textContent = '生成中…';
+  } else {
+    document.getElementById('genBtnText').textContent = '一键换装';
+  }
+}
+
+let toastTimer;
+function showToast(msg) {
+  const el   = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  el.classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.add('hidden'), 4000);
+}
+
+function ext(file) {
+  const name = file.name || 'img';
+  const idx  = name.lastIndexOf('.');
+  return idx >= 0 ? name.slice(idx + 1) : 'jpg';
 }

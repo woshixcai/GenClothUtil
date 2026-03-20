@@ -1,4 +1,4 @@
-package com.UiUtil.uitl;
+package com.UiUtil.shared.util;
 
 import com.alibaba.dashscope.aigc.multimodalconversation.MultiModalConversation;
 import com.alibaba.dashscope.aigc.multimodalconversation.MultiModalConversationParam;
@@ -21,16 +21,13 @@ import java.util.HashMap;
 @Component
 public class AliyunUtils {
 
-    /*static {Constants.baseHttpApiUrl="https://dashscope-intl.aliyuncs.com/api/v1";}*/
-
-    /*static {
-        Constants.baseHttpApiUrl="https://dashscope.aliyuncs.com";}*/
     static {
         Constants.baseHttpApiUrl = "https://dashscope.aliyuncs.com/api/v1";
     }
 
+    /** 配置文件兜底值，优先级低于环境变量 */
     @Value("${aliyun.dashscope.api-key:}")
-    private String dashscopeApiKey;
+    private String dashscopeApiKeyConfig;
 
     public String qWenVLPlus(MultipartFile file, String text) throws ApiException, NoApiKeyException, UploadFileException {
         try {
@@ -45,7 +42,7 @@ public class AliyunUtils {
                             }})).build();
             MultiModalConversationParam param = MultiModalConversationParam.builder()
                     .apiKey(resolveApiKey())
-                    .model("qwen-vl-plus")  // 此处以qwen3.5-plus为例，可按需更换模型名称。模型列表：https://help.aliyun.com/zh/model-studio/models
+                    .model("qwen-vl-plus")
                     .messages(Arrays.asList(userMessage))
                     .build();
             MultiModalConversationResult result = conv.call(param);
@@ -55,35 +52,36 @@ public class AliyunUtils {
         }
     }
 
-    private String resolveApiKey() {
-        if (dashscopeApiKey != null && !dashscopeApiKey.isBlank()) {
-            return dashscopeApiKey.trim();
-        }
-        String env = System.getenv("DASHSCOPE_API_KEY");
-        if (env != null && !env.isBlank()) {
+    /**
+     * Key 解析优先级：环境变量 → 配置文件 → 抛异常
+     */
+    private static String resolve(String envName, String configVal, String desc) {
+        String env = System.getenv(envName);
+        if (env != null && !env.trim().isEmpty()) {
             return env.trim();
         }
-        throw new RuntimeException("缺少DashScope API Key，请配置 aliyun.dashscope.api-key 或设置环境变量 DASHSCOPE_API_KEY");
+        if (configVal != null && !configVal.trim().isEmpty()) {
+            return configVal.trim();
+        }
+        throw new RuntimeException(
+                "缺少配置：" + desc + "。请设置环境变量 " + envName + " 或在 application.yml 中配置。");
+    }
+
+    private String resolveApiKey() {
+        return resolve("DASHSCOPE_API_KEY", dashscopeApiKeyConfig,
+                "阿里云DashScope API Key（aliyun.dashscope.api-key）");
     }
 
     private static String fileToBase64(MultipartFile file) throws IOException {
-        // 1. 空值校验（避免空指针）
         if (file == null || file.isEmpty()) {
             throw new IOException("上传的文件为空，请检查！");
         }
-
-        // 2. 获取文件ContentType，自动适配图片格式（jpeg/png/webp等）
         String contentType = file.getContentType();
         if (contentType == null || !contentType.startsWith("image/")) {
             throw new IOException("上传的文件不是图片类型，请上传 jpg/png/webp 格式！");
         }
-        // 提取图片格式（如 image/jpeg → jpeg）
         String imageFormat = contentType.split("/")[1];
-
-        // 3. 读取 MultipartFile 字节流（核心修正：用 getInputStream() 而非 FileInputStream）
         byte[] bytes = file.getBytes();
-
-        // 4. 拼接带格式前缀的 Base64 字符串（qwen-vl 必须带前缀）
         return String.format("data:image/%s;base64,%s",
                 imageFormat,
                 Base64.encodeBase64String(bytes));

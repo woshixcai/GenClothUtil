@@ -37,6 +37,7 @@ build/
 
 ### 敏感配置（本地覆盖用，不上传 GitHub）###
 application-local.yml
+*-local.yml
 application-prod.yml
 *.secret
 *.key

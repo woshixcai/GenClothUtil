@@ -1,24 +1,23 @@
-package com.UiUtil.uitl;
+package com.UiUtil.shared.util;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
-import lombok.Value;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.Date;
 
 @Component
 public class JwtUtil {
-    /*@Value("${jwt.secret}")*/
+
+    @Value("${jwt.secret:outfit_generator_2026}")
     private String secret;
 
-    /*@Value("${jwt.expire}")*/
+    @Value("${jwt.expire:86400}")
     private Long expire;
 
-    /**
-     * 生成token
-     */
+    /** 生成 Token，subject 存 userId */
     public String generateToken(String userId) {
         Date now = new Date();
         Date expireDate = new Date(now.getTime() + expire * 1000);
@@ -30,26 +29,25 @@ public class JwtUtil {
                 .compact();
     }
 
-    /**
-     * 解析token获取用户ID
-     */
+    /** 从 Token 中解析 userId */
     public String getUserIdFromToken(String token) {
-        Claims claims = Jwts.parser()
-                .setSigningKey(secret)
-                .parseClaimsJws(token)
-                .getBody();
-        return claims.getSubject();
+        return getClaims(token).getSubject();
     }
 
-    /**
-     * 验证token有效性
-     */
+    /** 验证 Token 有效性（过期/篡改均返回 false） */
     public boolean validateToken(String token) {
         try {
-            Jwts.parser().setSigningKey(secret).parseClaimsJws(token);
+            getClaims(token);
             return true;
         } catch (Exception e) {
             return false;
         }
+    }
+
+    private Claims getClaims(String token) {
+        return Jwts.parser()
+                .setSigningKey(secret)
+                .parseClaimsJws(token)
+                .getBody();
     }
 }

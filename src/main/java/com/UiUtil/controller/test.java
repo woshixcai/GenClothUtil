@@ -26,8 +26,8 @@ public class test {
                 .content("你是谁？")
                 .build();
         GenerationParam param = GenerationParam.builder()
-                // 若没有配置环境变量，请用阿里云百炼API Key将下行替换为：.apiKey("sk-xxx")
-                .apiKey("sk-a51693f700d64e0fac0996385f2ec49d")
+                // API Key 通过环境变量 DASHSCOPE_API_KEY 传入，勿硬编码
+                .apiKey(System.getenv("DASHSCOPE_API_KEY"))
                 // 模型列表：https://help.aliyun.com/model-studio/getting-started/models
                 .model("qwen-plus")
                 .messages(Arrays.asList(systemMsg, userMsg))

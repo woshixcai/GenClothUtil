@@ -87,7 +87,7 @@
         <dependency>
             <groupId>com.volcengine</groupId>
             <artifactId>volcengine-java-sdk-ark-runtime</artifactId>
-            <version>LATEST</version>
+            <version>1.0.13</version>
         </dependency>
 
         <!-- HTTP请求 -->

@@ -1,6 +1,6 @@
-package com.UiUtil.uitl;
+package com.UiUtil.shared.util;
 
-import com.UiUtil.Result.HuoShanResult;
+import com.UiUtil.shared.result.HuoShanResult;
 import com.volcengine.ark.runtime.model.images.generation.GenerateImagesRequest;
 import com.volcengine.ark.runtime.model.images.generation.ImageGenStreamEvent;
 import com.volcengine.ark.runtime.model.images.generation.ResponseFormat;
@@ -22,65 +22,53 @@ import java.util.concurrent.atomic.AtomicLong;
 @Service
 public class VlcengineUtils {
 
+    /** 配置文件兜底值，优先级低于环境变量 */
     @Value("${volc.ark.api-key:}")
-    private String apiKey;
+    private String apiKeyConfig;
 
     @Value("${volc.ark.model-name:doubao-seedream-5-0-260128}")
     private String modelName;
 
     /**
      * 生成试衣图片核心方法
-     * @param demoImage 样例图片
-     * @param closeImage 服装图片
-     * @param prompt 生图提示词
-     * @return 生成的图片URL列表
-     * @throws Exception 生图异常
      */
-    public HuoShanResult generateTryonImage(String demoImage,String closeImage, String prompt) throws Exception {
+    public HuoShanResult generateTryonImage(String demoImage, String closeImage, String prompt) throws Exception {
         HuoShanResult result = new HuoShanResult();
         List<String> imageUrls = new ArrayList<>();
         AtomicLong tokenUsage = new AtomicLong(0L);
 
-        if (apiKey == null || apiKey.trim().isEmpty()) {
-            throw new RuntimeException("缺少火山ARK API Key，请配置 volc.ark.api-key 或设置环境变量");
-        }
+        String resolvedApiKey = resolve("VOLC_ARK_API_KEY", apiKeyConfig, "火山ARK API Key（volc.ark.api-key）");
 
-        // 1. 初始化连接池和ArkService
         ConnectionPool connectionPool = new ConnectionPool(10, 3, TimeUnit.SECONDS);
         Dispatcher dispatcher = new Dispatcher();
         ArkService service = ArkService.builder()
                 .dispatcher(dispatcher)
                 .connectionPool(connectionPool)
-                .apiKey(apiKey.trim())
+                .apiKey(resolvedApiKey)
                 .build();
 
-        // 2. 配置批量生成参数
         GenerateImagesRequest.SequentialImageGenerationOptions sequentialOptions =
                 new GenerateImagesRequest.SequentialImageGenerationOptions();
-        sequentialOptions.setMaxImages(1); // 试衣场景默认生成1张
+        sequentialOptions.setMaxImages(1);
 
-        // 3. 构建生图请求
         GenerateImagesRequest generateRequest = GenerateImagesRequest.builder()
                 .model(modelName)
                 .prompt(prompt)
-                //.image(demoImage+","+closeImage)
                 .image(closeImage)
                 .image(demoImage)
                 .responseFormat(ResponseFormat.Url)
-                .size("2560x1440") // 适配试衣图比例
+                .size("2560x1440")
                 .sequentialImageGeneration("auto")
                 .sequentialImageGenerationOptions(sequentialOptions)
                 .stream(true)
-                .watermark(false) // 商用关闭水印
+                .watermark(false)
                 .build();
 
-        // 4. 流式调用生图接口
         service.streamGenerateImages(generateRequest)
                 .doOnError(Throwable::printStackTrace)
                 .blockingForEach(choice -> {
                     if (choice == null) return;
 
-                    // 处理部分失败
                     if ("image_generation.partial_failed".equals(choice.getType())) {
                         if (choice.getError() != null) {
                             String errorMsg = "生图失败：" + choice.getError().getMessage();
@@ -90,30 +78,25 @@ public class VlcengineUtils {
                         }
                     }
 
-                    // 收集成功生成的图片URL
                     if ("image_generation.partial_succeeded".equals(choice.getType())) {
                         if (choice.getUrl() != null && !choice.getUrl().isEmpty()) {
                             imageUrls.add(choice.getUrl());
                         }
                     }
 
-                    // 统计Token消耗（适配你提供的Usage类）
                     if ("image_generation.completed".equals(choice.getType())) {
-                        ImageGenStreamEvent.Usage usage = choice.getUsage(); // 改为实际的Usage类
+                        ImageGenStreamEvent.Usage usage = choice.getUsage();
                         if (usage != null) {
-                            // 优先取totalTokens，无则取outputTokens（兜底）
                             if (usage.getTotalTokens() > 0) {
                                 tokenUsage.set(usage.getTotalTokens());
                             } else if (usage.getOutputTokens() > 0) {
                                 tokenUsage.set(usage.getOutputTokens());
                             }
-                            // 可选：记录生成的图片数量
                             System.out.println("本次生成图片数量：" + usage.getGeneratedImages());
                         }
                     }
                 });
 
-        // 5. 关闭资源
         service.shutdownExecutor();
 
         if (imageUrls.isEmpty()) {
@@ -125,5 +108,15 @@ public class VlcengineUtils {
         return result;
     }
 
-
+    private static String resolve(String envName, String configVal, String desc) {
+        String env = System.getenv(envName);
+        if (env != null && !env.trim().isEmpty()) {
+            return env.trim();
+        }
+        if (configVal != null && !configVal.trim().isEmpty()) {
+            return configVal.trim();
+        }
+        throw new RuntimeException(
+                "缺少配置：" + desc + "。请设置环境变量 " + envName + " 或在 application.yml 中配置。");
+    }
 }
