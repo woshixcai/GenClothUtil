@@ -1,0 +1,59 @@
+server:
+  port: 6688
+
+spring:
+  mvc:
+    view:
+      prefix: /static/
+  datasource:
+    username: root
+    password: 123456
+    #    url: jdbc:mysql://115.159.199.216:3306/sale_member?characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    url: jdbc:mysql://localhost:3306/gen_cloth_ai?characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    driver-class-name: com.mysql.cj.jdbc.Driver
+mybatis-plus:
+  configuration:
+    # 日志
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      logic-delete-field: is_deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+      id-type: auto
+
+
+volc:
+    # AK/SK：火山引擎控制台获取
+  access-key: your_volc_access_key
+  secret-key: your_volc_secret_key
+  # 大模型接口地址
+  # 多模态识别（通义千问VL）
+  rag-api: https://ark.cn-beijing.volces.com/api/v3/chat/completions
+  # 文生图（StyleVerse）
+  image-generate-api: https://image.volcengineapi.com/v1/invoke
+  # StyleVerse服务ID
+  style-verse-service-id: your_style_verse_service_id
+
+  # ARK生图（在VlcengineUtils里使用）
+  ark:
+    api-key: ${VOLC_ARK_API_KEY:}
+    model-name: doubao-seedream-5-0-260128
+
+  # TOS上传（在ImageUtils里使用）
+  tos:
+    access-key: ${VOLC_TOS_ACCESS_KEY:}
+    secret-key: ${VOLC_TOS_SECRET_KEY:}
+    endpoint: ${VOLC_TOS_ENDPOINT:tos-cn-beijing.volces.com}
+    region: ${VOLC_TOS_REGION:cn-beijing}
+    bucket-name: ${VOLC_TOS_BUCKET_NAME:}
+    presign-hours: ${VOLC_TOS_PRESIGN_HOURS:1}
+
+  # JWT配置
+jwt:
+  secret: outfit_generator_2026 # 自定义密钥
+  expire: 86400 # 过期时间（秒）
+
+aliyun:
+  dashscope:
+    api-key: ${DASHSCOPE_API_KEY:}

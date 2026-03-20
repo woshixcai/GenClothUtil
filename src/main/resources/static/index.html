@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI穿版</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="container">
+    <!-- 页面标题 -->
+    <header class="header">
+        <h1>🎀 智能穿搭推荐</h1>
+        <p>上传衣服图片+参考穿搭，获取专属推荐</p>
+    </header>
+
+    <!-- 筛选条件区域 -->
+    <section class="filter-section">
+        <div class="filter-item">
+            <label for="style">穿搭风格：</label>
+            <select id="style">
+                <option value="休闲">休闲</option>
+                <option value="通勤">通勤</option>
+                <option value="甜美">甜美</option>
+                <option value="酷飒">酷飒</option>
+                <option value="复古">复古</option>
+            </select>
+        </div>
+        <div class="filter-item">
+            <label for="scene">适用场景：</label>
+            <select id="scene">
+                <option value="日常出行">日常出行</option>
+                <option value="职场办公">职场办公</option>
+                <option value="约会">约会</option>
+                <option value="聚会">聚会</option>
+                <option value="运动">运动</option>
+            </select>
+        </div>
+        <div class="filter-item">
+            <label for="season">季节：</label>
+            <select id="season">
+                <option value="春季">春季</option>
+                <option value="夏季">夏季</option>
+                <option value="秋季">秋季</option>
+                <option value="冬季">冬季</option>
+            </select>
+        </div>
+    </section>
+
+    <!-- 图片上传区域 -->
+    <section class="upload-section">
+        <!-- 穿版衣服上传 -->
+        <div class="upload-card">
+            <h3>📸 上传需要穿版的衣服（最多3张）</h3>
+            <div class="upload-area" id="clothesUploadArea">
+                <input type="file" id="clothesFileInput" accept="image/*" multiple hidden>
+                <button class="upload-btn" onclick="document.getElementById('clothesFileInput').click()">选择图片</button>
+            </div>
+            <div class="preview-list" id="clothesPreviewList"></div>
+        </div>
+
+        <!-- 参考穿搭上传 -->
+        <div class="upload-card">
+            <h3>📸 上传参考穿搭（最多3张）</h3>
+            <div class="upload-area" id="referenceUploadArea">
+                <input type="file" id="referenceFileInput" accept="image/*" multiple hidden>
+                <button class="upload-btn" onclick="document.getElementById('referenceFileInput').click()">选择图片</button>
+            </div>
+            <div class="preview-list" id="referencePreviewList"></div>
+        </div>
+    </section>
+
+    <!-- 提交按钮 -->
+    <button id="recommendBtn" class="submit-btn">获取穿搭推荐</button>
+
+    <!-- 加载状态 -->
+    <div id="loading" class="loading hidden">正在为你分析穿搭...</div>
+
+    <!-- 穿搭推荐结果区域 -->
+    <section class="result-section hidden" id="resultSection">
+        <h2>✅ 为你推荐的穿搭方案</h2>
+        <div class="result-content" id="resultContent">
+            <!-- 文字描述 -->
+            <div class="result-text" id="resultText"></div>
+            <!-- 推荐图片 -->
+            <div class="result-img-list" id="resultImgList"></div>
+        </div>
+    </section>
+
+    <!-- 错误提示区域 -->
+    <div class="error-tip hidden" id="errorTip">请求失败，请稍后重试！</div>
+</div>
+
+<script src="js/main.js"></script>
+</body>
+</html>
