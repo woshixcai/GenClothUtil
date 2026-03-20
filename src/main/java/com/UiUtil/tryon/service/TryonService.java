@@ -86,10 +86,11 @@ public class TryonService {
         record.setSeason(season);
         record.setTokenUsed(tokenUsed);
         record.setCreatedTime(new Date());
+        record.setStatus(result.isSuccess() ? 1 : 0);
         recordMapper.insert(record);
 
+        resp.put("recordId", record.getId());
         if (result.isSuccess()) {
-            resp.put("recordId", record.getId());
             resp.put("recommendText", "已为你生成穿搭试衣效果图（风格：" + safe(style) +
                     "，场景：" + safe(scene) + "，季节：" + safe(season) + "）。");
             resp.put("recommendImgs", result.getImageUrls());
