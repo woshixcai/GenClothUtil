@@ -184,6 +184,53 @@
           </div>
         </div>
       </div>
+      <!-- 反馈触发按钮 -->
+      <button class="btn-outline fb-trigger hidden" id="fbTriggerBtn">不满意，说说原因</button>
+
+      <!-- 反馈面板 -->
+      <div class="feedback-wrap hidden" id="feedbackWrap">
+        <div class="feedback-title">说说哪里不满意</div>
+        <div class="fb-group">
+          <div class="fb-group-label">模特问题</div>
+          <div class="fb-tags">
+            <label class="fb-tag"><input type="checkbox" value="model_fake"><span>模特太假</span></label>
+            <label class="fb-tag"><input type="checkbox" value="pose_stiff"><span>姿势僵硬</span></label>
+            <label class="fb-tag"><input type="checkbox" value="body_distorted"><span>比例失真</span></label>
+            <label class="fb-tag"><input type="checkbox" value="face_blur"><span>面部模糊</span></label>
+          </div>
+        </div>
+        <div class="fb-group">
+          <div class="fb-group-label">服装问题</div>
+          <div class="fb-tags">
+            <label class="fb-tag"><input type="checkbox" value="cloth_unflattering"><span>不显身材</span></label>
+            <label class="fb-tag"><input type="checkbox" value="color_off"><span>颜色偏差</span></label>
+            <label class="fb-tag"><input type="checkbox" value="texture_blur"><span>材质模糊</span></label>
+            <label class="fb-tag"><input type="checkbox" value="detail_lost"><span>细节丢失</span></label>
+          </div>
+        </div>
+        <div class="fb-group">
+          <div class="fb-group-label">场景问题</div>
+          <div class="fb-tags">
+            <label class="fb-tag"><input type="checkbox" value="scene_dislike"><span>场景不喜欢</span></label>
+            <label class="fb-tag"><input type="checkbox" value="lighting_bad"><span>光线不自然</span></label>
+            <label class="fb-tag"><input type="checkbox" value="bg_distracting"><span>背景抢眼</span></label>
+          </div>
+        </div>
+        <div class="fb-group">
+          <div class="fb-group-label">整体感觉</div>
+          <div class="fb-tags">
+            <label class="fb-tag"><input type="checkbox" value="style_mismatch"><span>风格不对</span></label>
+            <label class="fb-tag"><input type="checkbox" value="ref_mismatch"><span>与参考差距大</span></label>
+          </div>
+        </div>
+        <div class="fb-input-row">
+          <input class="fb-input" type="text" id="fbExtraText" placeholder="补充说明（可选）">
+          <button class="fb-mic" id="fbMicBtn" title="按住说话">🎤</button>
+        </div>
+        <button class="btn-gen" id="fbSubmitBtn" style="width:100%;margin-top:12px">
+          <span class="btn-gen-star">✦</span>提交反馈 &amp; 重新生成
+        </button>
+      </div>
     </section>
 
     <!-- Error Toast -->
@@ -228,6 +275,26 @@
       <p class="modal-note">初始账号：admin / admin123</p>
     </div>
   </div>
+
+  <!-- ── 底部导航 ────────────────────────────── -->
+  <nav class="bottom-nav" id="bottomNav">
+    <a class="bnav-item active" href="index.html" data-page="home">
+      <span class="bnav-icon">🏠</span>
+      <span class="bnav-label">换装</span>
+    </a>
+    <a class="bnav-item" href="inventory.html" data-page="inventory">
+      <span class="bnav-icon">📦</span>
+      <span class="bnav-label">服装库</span>
+    </a>
+    <a class="bnav-item bnav-add" href="add-item.html" data-page="add">
+      <span class="bnav-icon">＋</span>
+      <span class="bnav-label">入库</span>
+    </a>
+    <a class="bnav-item" href="admin.html" data-page="admin" id="adminNavItem" style="display:none">
+      <span class="bnav-icon">⚙️</span>
+      <span class="bnav-label">管理</span>
+    </a>
+  </nav>
 
   <script src="js/main.js"></script>
 </body>

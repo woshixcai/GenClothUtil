@@ -309,7 +309,7 @@ async function onGenerate() {
   document.getElementById('resultSection').classList.add('hidden');
 
   try {
-    const res = await fetch('/TestController/recommend', {
+    const res = await fetch('/tryon/recommend', {
       method:  'POST',
       headers: { 'Authorization': `Bearer ${S.token}` },
       body:    fd,
@@ -386,6 +386,8 @@ function renderResult(data, style, scene, season) {
   const section = document.getElementById('resultSection');
   section.classList.remove('hidden');
   setTimeout(() => section.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+
+  if (data.recordId) showFeedbackTrigger(data.recordId);
 }
 
 function onSave() {
@@ -420,3 +422,72 @@ function ext(file) {
   const idx  = name.lastIndexOf('.');
   return idx >= 0 ? name.slice(idx + 1) : 'jpg';
 }
+
+/* ================================================================
+   反馈面板
+   ================================================================ */
+let _currentRecordId = null;
+
+function showFeedbackTrigger(recordId) {
+  _currentRecordId = recordId;
+  const btn = document.getElementById('fbTriggerBtn');
+  if (btn) btn.classList.remove('hidden');
+}
+
+document.getElementById('fbTriggerBtn')?.addEventListener('click', () => {
+  document.getElementById('feedbackWrap')?.classList.toggle('hidden');
+});
+
+// 语音输入（Web Speech API，仅普通话）
+(function initMic() {
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const micBtn = document.getElementById('fbMicBtn');
+  if (!micBtn) return;
+  if (!SpeechRec) { micBtn.style.display = 'none'; return; }
+  const rec = new SpeechRec();
+  rec.lang = 'zh-CN';
+  rec.interimResults = false;
+  rec.onresult = e => {
+    const text = e.results[0][0].transcript;
+    const input = document.getElementById('fbExtraText');
+    if (input) input.value = (input.value ? input.value + ' ' : '') + text;
+  };
+  rec.onerror = () => showToast('语音识别失败，请重试或手动输入');
+  micBtn.addEventListener('mousedown', () => { micBtn.classList.add('mic-active'); try { rec.start(); } catch(e){} });
+  micBtn.addEventListener('mouseup',   () => { micBtn.classList.remove('mic-active'); try { rec.stop(); } catch(e){} });
+  micBtn.addEventListener('touchstart', e => { e.preventDefault(); micBtn.classList.add('mic-active'); try { rec.start(); } catch(e2){} });
+  micBtn.addEventListener('touchend',   e => { e.preventDefault(); micBtn.classList.remove('mic-active'); try { rec.stop(); } catch(e2){} });
+})();
+
+document.getElementById('fbSubmitBtn')?.addEventListener('click', async () => {
+  if (!_currentRecordId) return;
+  const checked = [...document.querySelectorAll('#feedbackWrap .fb-tag input:checked')].map(i => i.value);
+  const extra = document.getElementById('fbExtraText')?.value || '';
+  const token = S.token || '';
+
+  const params = new URLSearchParams();
+  params.append('recordId', _currentRecordId);
+  checked.forEach(t => params.append('tagCodes', t));
+  if (extra.trim()) params.append('extraText', extra.trim());
+
+  try {
+    await fetch('/tryon/feedback', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params
+    });
+    showToast('反馈已提交，正在结合偏好重新生成…');
+  } catch(e) {
+    showToast('反馈提交失败，请重试');
+    return;
+  }
+
+  // 重置反馈面板
+  document.querySelectorAll('#feedbackWrap .fb-tag input').forEach(i => i.checked = false);
+  if (document.getElementById('fbExtraText')) document.getElementById('fbExtraText').value = '';
+  document.getElementById('feedbackWrap')?.classList.add('hidden');
+  document.getElementById('fbTriggerBtn')?.classList.add('hidden');
+
+  // 触发重新生成
+  document.getElementById('genBtn')?.click();
+});

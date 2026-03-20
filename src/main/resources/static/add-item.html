@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="gentle-luxury">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>StyleMe · 拍照入库</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .preview-img { width:100%; border-radius:12px; object-fit:cover; max-height:300px; display:block; }
+    .form-stack { display:flex; flex-direction:column; gap:14px; }
+    .field-row { display:flex; gap:10px; }
+    .field { display:flex; flex-direction:column; gap:4px; flex:1; }
+    .field-label { font-size:13px; font-weight:500; color:var(--text-2,#555); }
+    textarea.field-input { resize:vertical; min-height:60px; }
+    select.field-input { appearance:none; }
+  </style>
+</head>
+<body>
+<header class="header"><div class="header-inner">
+  <div class="logo"><span class="logo-mark">✦</span><span class="logo-name">拍照入库</span></div>
+</div></header>
+
+<main class="main" style="padding-top:72px">
+  <section class="block">
+    <div class="block-label">
+      <span class="block-num">01</span><span class="block-title">拍照或上传</span>
+    </div>
+    <div class="ucard" style="cursor:pointer" id="photoCard">
+      <div class="uzone" id="photoZone" style="min-height:180px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;">
+        <input type="file" id="photoInput" accept="image/*" capture="environment" hidden>
+        <div id="photoPh" style="text-align:center">
+          <div style="font-size:40px">📷</div>
+          <span style="font-size:14px;color:var(--text-3,#999)">点击拍照或选择图片</span>
+        </div>
+        <img class="preview-img hidden" id="previewImg" alt="预览">
+      </div>
+    </div>
+    <button class="btn-gen" id="recognizeBtn" disabled style="margin-top:12px;width:100%">
+      <span class="btn-gen-star">✦</span><span id="recognizeBtnText">AI 识别商品名称</span>
+    </button>
+  </section>
+
+  <section class="block hidden" id="itemFormSection">
+    <div class="block-label">
+      <span class="block-num">02</span><span class="block-title">填写商品信息</span>
+    </div>
+    <div class="form-stack">
+      <div class="field">
+        <label class="field-label">商品名称 *</label>
+        <input class="field-input" type="text" id="itemName" placeholder="AI已识别，可修改">
+      </div>
+      <div class="field">
+        <label class="field-label">AI 描述</label>
+        <textarea class="field-input" id="itemDesc" rows="2" placeholder="商品描述"></textarea>
+      </div>
+      <div class="field">
+        <label class="field-label">分类</label>
+        <select class="field-input" id="itemCategory">
+          <option value="">请选择</option>
+          <option>上装</option><option>下装</option>
+          <option>外套</option><option>裙装</option><option>配饰</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label class="field-label">进价（元）</label>
+          <input class="field-input" type="number" step="0.01" id="costPrice" placeholder="选填">
+        </div>
+        <div class="field">
+          <label class="field-label">售价（元）</label>
+          <input class="field-input" type="number" step="0.01" id="salePrice" placeholder="选填">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label class="field-label">颜色</label>
+          <input class="field-input" type="text" id="skuColor" placeholder="如：米白色">
+        </div>
+        <div class="field">
+          <label class="field-label">尺码</label>
+          <select class="field-input" id="skuSize">
+            <option value="">请选择</option>
+            <option>XS</option><option>S</option><option>M</option>
+            <option>L</option><option>XL</option><option>XXL</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label">库存数</label>
+          <input class="field-input" type="number" id="stockQty" value="1" min="0">
+        </div>
+      </div>
+    </div>
+    <button class="btn-gen" id="saveBtn" style="width:100%;margin-top:16px">
+      <span class="btn-gen-star">✦</span><span id="saveBtnText">确认入库</span>
+    </button>
+  </section>
+
+  <div class="toast hidden" id="toast"><span class="toast-icon">⚠</span><span id="toastMsg"></span></div>
+</main>
+
+<nav class="bottom-nav">
+  <a class="bnav-item" href="index.html"><span class="bnav-icon">🏠</span><span class="bnav-label">换装</span></a>
+  <a class="bnav-item" href="inventory.html"><span class="bnav-icon">📦</span><span class="bnav-label">服装库</span></a>
+  <a class="bnav-item bnav-add active" href="add-item.html"><span class="bnav-icon">＋</span><span class="bnav-label">入库</span></a>
+</nav>
+
+<script>
+const getToken = () => localStorage.getItem('sm_token') || '';
+const showToast = (msg, dur) => {
+  dur = dur || 3000;
+  const t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  t.classList.remove('hidden');
+  setTimeout(() => t.classList.add('hidden'), dur);
+};
+
+let photoFile = null;
+
+document.getElementById('photoCard').addEventListener('click', () =>
+  document.getElementById('photoInput').click());
+
+document.getElementById('photoInput').addEventListener('change', e => {
+  photoFile = e.target.files[0];
+  if (!photoFile) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = document.getElementById('previewImg');
+    img.src = ev.target.result;
+    img.classList.remove('hidden');
+    document.getElementById('photoPh').style.display = 'none';
+    document.getElementById('recognizeBtn').disabled = false;
+  };
+  reader.readAsDataURL(photoFile);
+});
+
+document.getElementById('recognizeBtn').addEventListener('click', async () => {
+  if (!photoFile) return;
+  document.getElementById('recognizeBtnText').textContent = '识别中…';
+  document.getElementById('recognizeBtn').disabled = true;
+
+  try {
+    const fd = new FormData();
+    fd.append('image', photoFile);
+    const res = await fetch('/inventory/recognize', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + getToken() },
+      body: fd
+    });
+    const data = await res.json();
+    if (data.code === 200 && data.data) {
+      document.getElementById('itemName').value = data.data.name || '';
+      document.getElementById('itemDesc').value  = data.data.description || '';
+    } else {
+      showToast('AI识别失败，请手动填写');
+    }
+  } catch(e) {
+    showToast('网络错误，请手动填写');
+  }
+
+  document.getElementById('itemFormSection').classList.remove('hidden');
+  document.getElementById('itemFormSection').scrollIntoView({ behavior: 'smooth' });
+  document.getElementById('recognizeBtnText').textContent = 'AI 识别商品名称';
+  document.getElementById('recognizeBtn').disabled = false;
+});
+
+document.getElementById('saveBtn').addEventListener('click', async () => {
+  const itemName = document.getElementById('itemName').value.trim();
+  if (!itemName) { showToast('请填写商品名称'); return; }
+  if (!photoFile) { showToast('请先拍照或上传图片'); return; }
+
+  document.getElementById('saveBtnText').textContent = '入库中…';
+  document.getElementById('saveBtn').disabled = true;
+
+  try {
+    const fd = new FormData();
+    fd.append('image', photoFile);
+    fd.append('itemName', itemName);
+    const cat   = document.getElementById('itemCategory').value;
+    const cost  = document.getElementById('costPrice').value;
+    const sale  = document.getElementById('salePrice').value;
+    const desc  = document.getElementById('itemDesc').value;
+    const color = document.getElementById('skuColor').value;
+    const size  = document.getElementById('skuSize').value;
+    const qty   = document.getElementById('stockQty').value;
+    if (cat)   fd.append('category', cat);
+    if (cost)  fd.append('costPrice', cost);
+    if (sale)  fd.append('salePrice', sale);
+    if (desc)  fd.append('description', desc);
+    if (color) fd.append('color', color);
+    if (size)  fd.append('size', size);
+    if (qty)   fd.append('stockQty', qty);
+
+    const res = await fetch('/inventory/items', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + getToken() },
+      body: fd
+    });
+    const data = await res.json();
+    if (data.code === 200) {
+      showToast('入库成功！');
+      setTimeout(() => location.href = 'inventory.html', 1200);
+    } else {
+      showToast('入库失败：' + (data.msg || '请重试'));
+    }
+  } catch(e) {
+    showToast('网络错误：' + e.message);
+  }
+
+  document.getElementById('saveBtnText').textContent = '确认入库';
+  document.getElementById('saveBtn').disabled = false;
+});
+</script>
+</body>
+</html>
