@@ -8,7 +8,6 @@ spring:
   datasource:
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:}
-    #    url: jdbc:mysql://115.159.199.216:3306/sale_member?characterEncoding=utf-8&serverTimezone=Asia/Shanghai
     url: ${DB_URL:jdbc:mysql://localhost:3306/gen_cloth_ai?characterEncoding=utf-8&serverTimezone=Asia/Shanghai}
     driver-class-name: com.mysql.cj.jdbc.Driver
 mybatis-plus:
