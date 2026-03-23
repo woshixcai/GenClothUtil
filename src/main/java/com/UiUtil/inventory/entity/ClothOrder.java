@@ -1,5 +1,8 @@
 package com.UiUtil.inventory.entity;
 
+/**
+ * 销售订单实体，对应 cloth_order 表，记录每笔销售或退货单的头部信息（单号、金额、状态等）。
+ */
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;

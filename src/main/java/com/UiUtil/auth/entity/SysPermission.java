@@ -1,5 +1,8 @@
 package com.UiUtil.auth.entity;
 
+/**
+ * 系统权限实体，对应 sys_permission 表，存储权限标识（如 inventory:manage）。
+ */
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 

@@ -1,5 +1,8 @@
 package com.UiUtil.auth.entity;
 
+/**
+ * 系统用户实体，对应 sys_user 表，包含账号、密码、绑定店铺、每日配额、AI生图权限等核心字段。
+ */
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 

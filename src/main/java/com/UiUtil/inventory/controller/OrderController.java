@@ -1,5 +1,8 @@
 package com.UiUtil.inventory.controller;
 
+/**
+ * 销售订单接口：创建销售/退货订单、查询订单列表（支持日期和状态过滤）、销售报表统计。
+ */
 import com.UiUtil.inventory.entity.ClothOrder;
 import com.UiUtil.inventory.service.OrderService;
 import com.UiUtil.shared.annotation.RequirePermission;

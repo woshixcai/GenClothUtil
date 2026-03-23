@@ -1,5 +1,9 @@
 package com.UiUtil.entity;
 
+/**
+ * 图片上传缓存实体，对应 upload_image_cache 表，以图片 MD5 为唯一键，
+ * 避免相同图片重复上传至 TOS，存储对应的永久公开 URL。
+ */
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;

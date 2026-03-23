@@ -1,5 +1,9 @@
 package com.UiUtil.tryon.entity;
 
+/**
+ * 换装生图记录实体，对应 tryon_record 表，存储任务状态（pending/done/failed）、
+ * 生成图片 URL 及本次消耗的 Token 数量。
+ */
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 import java.util.Date;

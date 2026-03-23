@@ -1,5 +1,8 @@
 package com.UiUtil.inventory.mapper;
 
+/**
+ * 销售订单明细数据访问层，支持按订单 ID 批量查询明细列表。
+ */
 import com.UiUtil.inventory.entity.ClothOrderItem;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;

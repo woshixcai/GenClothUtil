@@ -1,5 +1,9 @@
 package com.UiUtil.service;
 
+/**
+ * 图片生成服务：处理换装生图请求、查询任务状态，并对生成的结果图片进行 TOS 上传缓存，
+ * 避免重复调用生图接口。
+ */
 import com.UiUtil.shared.result.HuoShanResult;
 import com.UiUtil.entity.UploadImageCache;
 import com.UiUtil.mapper.UploadImageCacheMapper;

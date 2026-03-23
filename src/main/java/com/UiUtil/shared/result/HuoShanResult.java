@@ -1,5 +1,8 @@
 package com.UiUtil.shared.result;
 
+/**
+ * 火山引擎 ARK 图片生成结果封装类，包含任务 ID、生成图片 URL 列表及 Token 消耗量。
+ */
 import lombok.Data;
 
 import java.util.List;

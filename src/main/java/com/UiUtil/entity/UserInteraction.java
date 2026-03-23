@@ -1,5 +1,9 @@
 package com.UiUtil.entity;
 
+/**
+ * 用户与生图记录的交互实体，对应 user_interaction 表，
+ * 记录用户对换装结果的点赞、不喜欢等行为，用于偏好学习数据来源。
+ */
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;

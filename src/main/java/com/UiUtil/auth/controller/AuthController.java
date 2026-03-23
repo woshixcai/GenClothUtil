@@ -1,5 +1,8 @@
 package com.UiUtil.auth.controller;
 
+/**
+ * 认证接口：提供用户注册、登录、获取当前用户信息等功能，登录成功后返回 JWT Token。
+ */
 import com.UiUtil.shared.annotation.RequirePermission;
 import com.UiUtil.auth.dto.LoginRequest;
 import com.UiUtil.auth.dto.LoginResponse;

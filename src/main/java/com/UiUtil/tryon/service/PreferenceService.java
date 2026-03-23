@@ -1,5 +1,9 @@
 package com.UiUtil.tryon.service;
 
+/**
+ * 用户偏好学习服务：聚合历史反馈标签，更新 user_preference 中的偏好向量（JSON 词频格式），
+ * 并将高权重标签转化为负面提示词供下次生图使用。
+ */
 import com.UiUtil.tryon.entity.UserPreference;
 import com.UiUtil.tryon.mapper.UserPreferenceMapper;
 import com.alibaba.fastjson.JSON;

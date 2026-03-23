@@ -1,5 +1,8 @@
 package com.UiUtil.inventory.service;
 
+/**
+ * 销售订单服务：创建销售/退货订单（自动扣减或回补 SKU 库存）、分页查询订单列表，以及销售报表统计。
+ */
 import com.UiUtil.inventory.entity.*;
 import com.UiUtil.inventory.mapper.*;
 import com.UiUtil.shared.context.UserContext;
@@ -10,6 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -81,6 +86,7 @@ public class OrderService {
             oi.setSkuDesc(buildSkuDesc(sku));
             oi.setQty(qty);
             oi.setUnitPrice(price);
+            oi.setShopId(user.getShopId());
             if (user.getCanSeeCost() != null && user.getCanSeeCost() == 1) {
                 oi.setCostPrice(item.getCostPrice());
             }
@@ -149,6 +155,7 @@ public class OrderService {
             ri.setQty(oi.getQty());
             ri.setUnitPrice(oi.getUnitPrice());
             ri.setCostPrice(oi.getCostPrice());
+            ri.setShopId(orig.getShopId());
             orderItemMapper.insert(ri);
         }
         return refund;
@@ -179,43 +186,64 @@ public class OrderService {
     }
 
     /**
-     * 销售报表聚合（仅统计 order_type=1 销售单）。
+     * 销售报表聚合：
+     * <ul>
+     *   <li>销售单（type=1）按正向计入销售额/成本；</li>
+     *   <li>退货单（type=2）按反向冲减（与 listOrders 时间范围一致）；</li>
+     *   <li>若销售发生在本统计期内、退货发生在期外，则本期内不再计入该笔销售，避免“已退仍算利润”。</li>
+     *   <li>若销售与退货均在本期内，则销售 + 退货冲减，净额正确。</li>
+     * </ul>
      */
     public Map<String, Object> salesReport(String startDate, String endDate) {
-        List<ClothOrder> orders = listOrders(startDate, endDate);
-        List<ClothOrder> sales  = orders.stream()
-                .filter(o -> o.getOrderType() == 1).collect(Collectors.toList());
+        UserContext.LoginUser user = UserContext.current();
+        Long shopId = user.getShopId();
 
-        BigDecimal totalSales = BigDecimal.ZERO;
-        BigDecimal totalCost  = BigDecimal.ZERO;
-        int orderCount        = sales.size();
-
-        Map<Long, Map<String, Object>> itemMap = new LinkedHashMap<>();
-        for (ClothOrder o : sales) {
-            for (ClothOrderItem li : o.getItems()) {
-                BigDecimal price = li.getUnitPrice() != null ? li.getUnitPrice() : BigDecimal.ZERO;
-                BigDecimal cost  = li.getCostPrice() != null ? li.getCostPrice() : BigDecimal.ZERO;
-                BigDecimal rev   = price.multiply(BigDecimal.valueOf(li.getQty()));
-                BigDecimal cos   = cost .multiply(BigDecimal.valueOf(li.getQty()));
-                totalSales = totalSales.add(rev);
-                totalCost  = totalCost .add(cos);
-
-                itemMap.computeIfAbsent(li.getItemId(), k -> {
-                    Map<String, Object> m = new LinkedHashMap<>();
-                    m.put("itemId",   li.getItemId());
-                    m.put("itemName", li.getItemName());
-                    m.put("qty",   0);
-                    m.put("sales", BigDecimal.ZERO);
-                    m.put("cost",  BigDecimal.ZERO);
-                    return m;
-                });
-                Map<String, Object> m = itemMap.get(li.getItemId());
-                m.put("qty",   (int) m.get("qty") + li.getQty());
-                m.put("sales", ((BigDecimal) m.get("sales")).add(rev));
-                m.put("cost",  ((BigDecimal) m.get("cost")) .add(cos));
+        // 全店退货单：orig_order_id -> 退货单（整单退仅一条）
+        List<ClothOrder> allRefunds = orderMapper.selectList(
+                new LambdaQueryWrapper<ClothOrder>()
+                        .eq(ClothOrder::getShopId, shopId)
+                        .eq(ClothOrder::getOrderType, 2));
+        Map<Long, ClothOrder> refundByOrigSaleId = new HashMap<>();
+        for (ClothOrder r : allRefunds) {
+            if (r.getOrigOrderId() != null) {
+                refundByOrigSaleId.put(r.getOrigOrderId(), r);
             }
         }
+
+        List<ClothOrder> orders = listOrders(startDate, endDate);
+
+        BigDecimal[] totals = new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO};
+        int saleOrderCount    = 0;
+        int refundOrderCount  = 0;
+
+        Map<String, Map<String, Object>> itemMap = new LinkedHashMap<>();
+
+        for (ClothOrder o : orders) {
+            if (o.getOrderType() == null) continue;
+
+            if (o.getOrderType() == 1) {
+                ClothOrder ref = refundByOrigSaleId.get(o.getId());
+                if (ref != null && !inReportRange(ref.getCreatedTime(), startDate, endDate)) {
+                    // 已退货且退货不在本统计期：本期内不计入该销售，避免虚增
+                    continue;
+                }
+                saleOrderCount++;
+                accumulateOrderIntoReport(o, 1, totals, itemMap);
+            } else if (o.getOrderType() == 2) {
+                refundOrderCount++;
+                accumulateOrderIntoReport(o, -1, totals, itemMap);
+            }
+        }
+
+        BigDecimal totalSales = totals[0];
+        BigDecimal totalCost  = totals[1];
+
         List<Map<String, Object>> itemList = new ArrayList<>(itemMap.values());
+        itemList.removeIf(m -> {
+            int q = (int) m.get("qty");
+            BigDecimal s = (BigDecimal) m.get("sales");
+            return q == 0 && s.compareTo(BigDecimal.ZERO) == 0;
+        });
         itemList.forEach(m -> m.put("profit",
                 ((BigDecimal) m.get("sales")).subtract((BigDecimal) m.get("cost"))));
 
@@ -223,12 +251,105 @@ public class OrderService {
         summary.put("totalSales",  totalSales);
         summary.put("totalCost",   totalCost);
         summary.put("grossProfit", totalSales.subtract(totalCost));
-        summary.put("orderCount",  orderCount);
+        summary.put("orderCount",  saleOrderCount);
+        summary.put("saleOrderCount", saleOrderCount);
+        summary.put("refundOrderCount", refundOrderCount);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("summary", summary);
         result.put("items",   itemList);
         return result;
+    }
+
+    /** sign=1 销售累加，sign=-1 退货冲减；totals[0]=销售额 totals[1]=成本 */
+    private void accumulateOrderIntoReport(ClothOrder o, int sign, BigDecimal[] totals,
+                                           Map<String, Map<String, Object>> itemMap) {
+        if (o.getItems() == null) return;
+        for (ClothOrderItem li : o.getItems()) {
+            int lineQty = li.getQty() != null ? li.getQty() : 0;
+            BigDecimal price = li.getUnitPrice() != null ? li.getUnitPrice() : BigDecimal.ZERO;
+            BigDecimal cost  = li.getCostPrice() != null ? li.getCostPrice() : BigDecimal.ZERO;
+            BigDecimal rev   = price.multiply(BigDecimal.valueOf(lineQty));
+            BigDecimal cos   = cost.multiply(BigDecimal.valueOf(lineQty));
+
+            if (sign >= 0) {
+                totals[0] = totals[0].add(rev);
+                totals[1] = totals[1].add(cos);
+            } else {
+                totals[0] = totals[0].subtract(rev);
+                totals[1] = totals[1].subtract(cos);
+            }
+
+            String aggKey = aggregateKeyForReportLine(li);
+            itemMap.computeIfAbsent(aggKey, k -> {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("itemId",   li.getItemId());
+                m.put("skuId",    li.getSkuId());
+                m.put("itemName", li.getItemName());
+                m.put("skuDesc",  li.getSkuDesc());
+                m.put("qty",   0);
+                m.put("sales", BigDecimal.ZERO);
+                m.put("cost",  BigDecimal.ZERO);
+                return m;
+            });
+            Map<String, Object> m = itemMap.get(aggKey);
+            int dq = sign * lineQty;
+            m.put("qty", (int) m.get("qty") + dq);
+            if (sign >= 0) {
+                m.put("sales", ((BigDecimal) m.get("sales")).add(rev));
+                m.put("cost",  ((BigDecimal) m.get("cost")).add(cos));
+            } else {
+                m.put("sales", ((BigDecimal) m.get("sales")).subtract(rev));
+                m.put("cost",  ((BigDecimal) m.get("cost")).subtract(cos));
+            }
+        }
+    }
+
+    /**
+     * 与 listOrders 一致：created_time &gt;= startDate 且 &lt; endDate（end 为排他上界，一般为次日 0 点字符串）。
+     */
+    private static boolean inReportRange(Date t, String startDate, String endDate) {
+        if (t == null) return false;
+        long tm = t.getTime();
+        if (startDate != null && !startDate.isEmpty()) {
+            long s = dayStartMillis(startDate.trim());
+            if (tm < s) return false;
+        }
+        if (endDate != null && !endDate.isEmpty()) {
+            long e = dayStartMillis(endDate.trim());
+            if (tm >= e) return false;
+        }
+        return true;
+    }
+
+    private static long dayStartMillis(String ymd) {
+        String[] p = ymd.split("-");
+        if (p.length != 3) return 0L;
+        LocalDate d = LocalDate.of(Integer.parseInt(p[0]), Integer.parseInt(p[1]), Integer.parseInt(p[2]));
+        return d.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli();
+    }
+
+    /**
+     * 报表行聚合键：
+     * <ul>
+     *   <li>有 skuId：按 SKU 跨订单汇总（同一 SKU 多笔销售合并数量/金额，属于正常汇总，不是覆盖）</li>
+     *   <li>无 skuId 但有规格描述：按 itemId+描述汇总</li>
+     *   <li>无 skuId 且规格为空：用订单明细主键，避免多条“看起来一样”的明细被误并成一行</li>
+     * </ul>
+     */
+    private static String aggregateKeyForReportLine(ClothOrderItem li) {
+        if (li.getSkuId() != null) {
+            return "sku:" + li.getSkuId();
+        }
+        String desc = li.getSkuDesc() != null ? li.getSkuDesc().trim() : "";
+        if (!desc.isEmpty()) {
+            return "legacy:" + li.getItemId() + ":" + desc;
+        }
+        Long lineId = li.getId();
+        if (lineId != null) {
+            return "legacyLine:" + lineId;
+        }
+        return "legacyFallback:" + li.getItemId() + ":" + System.identityHashCode(li);
     }
 
     // ── 工具方法 ──────────────────────────────

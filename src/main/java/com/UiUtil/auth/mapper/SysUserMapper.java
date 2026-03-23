@@ -1,5 +1,8 @@
 package com.UiUtil.auth.mapper;
 
+/**
+ * 用户数据访问层，支持按用户名查询，以及按店铺 ID 列举子账号。
+ */
 import com.UiUtil.auth.entity.SysUser;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.*;

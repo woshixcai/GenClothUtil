@@ -10,26 +10,43 @@
     .cat-tabs::-webkit-scrollbar { display:none; }
     .cat-tab { padding:6px 16px; border-radius:20px; border:1px solid var(--border,#eee); font-size:13px; cursor:pointer; white-space:nowrap; background:var(--bg-page,#fdfaf7); color:var(--text-2,#555); }
     .cat-tab.active { background:var(--accent,#c0876a); color:#fff; border-color:var(--accent,#c0876a); }
-    .item-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; padding:0 16px 16px; }
-    .item-card { background:var(--bg-card,#fff); border-radius:14px; overflow:hidden; border:1px solid var(--border,#eee); cursor:pointer; }
-    .item-img { width:100%; aspect-ratio:3/4; background:#f5f5f5; display:flex;align-items:center;justify-content:center;font-size:40px; overflow:hidden; position:relative; }
-    .item-img img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
-    .item-info { padding:10px 12px; }
-    .item-name { font-size:13px; font-weight:600; color:var(--text-1,#222); margin-bottom:4px; white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
-    .item-price { font-size:12px; color:var(--text-3,#999); }
-    .item-sale { color:var(--accent,#c0876a); font-weight:600; }
-    .item-cost { margin-left:6px; }
-    .empty-tip { text-align:center; padding:60px 0; color:var(--text-3,#999); font-size:14px; }
-    .loading-tip { text-align:center; padding:40px 0; color:var(--text-3,#999); font-size:14px; }
-    .item-card   { position: relative; }
-    .item-del-btn {
-      position: absolute; top: 6px; right: 6px;
-      width: 22px; height: 22px; border-radius: 50%;
-      background: rgba(0,0,0,.35); color: #fff;
-      font-size: 13px; line-height: 22px; text-align: center;
-      cursor: pointer; z-index: 2; user-select: none;
+
+    .inv-search { padding:0 16px 10px; }
+    .inv-search input {
+      width:100%; box-sizing:border-box; padding:10px 14px; border-radius:var(--radius-m,12px);
+      border:1.5px solid var(--border); font-size:14px; background:var(--bg-card); color:var(--text-1);
     }
-    .item-del-btn:active { background: rgba(180,40,40,.8); }
+    .inv-search input:focus { outline:none; border-color:var(--c-primary,#c0876a); }
+
+    .inv-toolbar {
+      display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:0 16px 12px;
+    }
+    .inv-toolbar .tb-btn {
+      padding:8px 14px; border-radius:var(--radius-s,8px); border:1px solid var(--border);
+      background:var(--bg-card); font-size:12px; font-weight:600; color:var(--text-1); cursor:pointer;
+    }
+    .inv-toolbar .tb-btn.primary { background:var(--grad); color:#fff; border-color:transparent; }
+    .inv-toolbar .tb-btn.danger { border-color:#e8b4b4; color:#b04040; }
+
+    .table-wrap { padding:0 16px 100px; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    .inv-table { width:100%; min-width:320px; border-collapse:collapse; font-size:13px; background:var(--bg-card); border-radius:12px; overflow:hidden; border:1px solid var(--border); }
+    .inv-table th, .inv-table td { padding:10px 8px; text-align:left; border-bottom:1px solid var(--border,#f0ebe4); vertical-align:middle; }
+    .inv-table th { background:var(--bg-2); color:var(--text-3); font-weight:600; font-size:11px; white-space:nowrap; }
+    .inv-table tr:last-child td { border-bottom:none; }
+    .inv-table .col-chk { width:40px; text-align:center; }
+    .inv-table .col-thumb { width:56px; }
+    .inv-thumb { width:48px; height:56px; border-radius:8px; object-fit:cover; background:#f5f5f5; display:block; }
+    .inv-thumb-ph { width:48px; height:56px; border-radius:8px; background:#f5f5f5; display:flex; align-items:center; justify-content:center; font-size:22px; }
+    .inv-name { font-weight:600; color:var(--text-1); max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .inv-price { color:var(--accent,#c0876a); font-weight:700; white-space:nowrap; }
+    .inv-stock { color:var(--text-3); font-size:12px; white-space:nowrap; }
+    .inv-actions a, .inv-actions span { font-size:12px; color:var(--accent); cursor:pointer; margin-right:8px; text-decoration:none; }
+    .inv-actions .del { color:#b04040; }
+
+    .empty-tip { text-align:center; padding:50px 16px; color:var(--text-3); font-size:14px; }
+    .loading-tip { text-align:center; padding:40px 0; color:var(--text-3); font-size:14px; }
+
+    .toast.hidden { display:none; }
   </style>
 </head>
 <body>
@@ -45,7 +62,6 @@
 </div></header>
 
 <main class="main" style="padding-top:72px">
-  <!-- 分类 Tab -->
   <div class="cat-tabs" id="catTabs">
     <button class="cat-tab active" data-cat="">全部</button>
     <button class="cat-tab" data-cat="上装">上装</button>
@@ -55,8 +71,34 @@
     <button class="cat-tab" data-cat="配饰">配饰</button>
   </div>
 
+  <div class="inv-search">
+    <input type="search" id="keywordInput" placeholder="商品名称模糊搜索…" autocomplete="off">
+  </div>
+
+  <div class="inv-toolbar">
+    <button type="button" class="tb-btn" id="btnSelectAll">全选</button>
+    <button type="button" class="tb-btn" id="btnSelectNone">取消全选</button>
+    <button type="button" class="tb-btn primary" id="btnBatchStock">批量加库存</button>
+    <button type="button" class="tb-btn primary" id="btnBatchOrder">批量开单</button>
+    <button type="button" class="tb-btn danger" id="btnBatchDel">批量删除</button>
+  </div>
+
   <div id="loadingTip" class="loading-tip">加载中…</div>
-  <div class="item-grid" id="itemGrid" style="display:none"></div>
+  <div class="table-wrap" id="tableWrap" style="display:none">
+    <table class="inv-table">
+      <thead>
+        <tr>
+          <th class="col-chk"><input type="checkbox" id="chkAll" aria-label="全选"></th>
+          <th class="col-thumb">图</th>
+          <th>商品名</th>
+          <th>售价</th>
+          <th>库存</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="invTbody"></tbody>
+    </table>
+  </div>
   <div class="empty-tip hidden" id="emptyTip">暂无商品，去拍照入库吧 📷</div>
 
   <div class="toast hidden" id="toast"><span class="toast-icon">⚠</span><span id="toastMsg"></span></div>
@@ -64,101 +106,136 @@
 
 <nav class="bottom-nav">
   <a class="bnav-item" href="index.html"><span class="bnav-icon">🏠</span><span class="bnav-label">换装</span></a>
-  <a class="bnav-item active" href="inventory.html"><span class="bnav-icon">📦</span><span class="bnav-label">服装库</span></a>
-  <a class="bnav-item bnav-add" href="add-item.html"><span class="bnav-icon">＋</span><span class="bnav-label">入库</span></a>
-  <a class="bnav-item" href="order.html"><span class="bnav-icon">🧾</span><span class="bnav-label">开单</span></a>
-  <a class="bnav-item" href="order-list.html"><span class="bnav-icon">📊</span><span class="bnav-label">订单</span></a>
+  <a class="bnav-item active" href="ops.html"><span class="bnav-icon">🧾</span><span class="bnav-label">进销存</span></a>
+  <a class="bnav-item" href="admin.html" id="adminNavItem" style="display:none"><span class="bnav-icon">⚙️</span><span class="bnav-label">系统管理</span></a>
 </nav>
 
 <script>
 const getToken = () => localStorage.getItem('sm_token') || '';
 const getPerms = () => JSON.parse(localStorage.getItem('sm_perms') || '[]');
 
-// 管理导航显隐
 (function() {
   const p = getPerms();
   const nav = document.getElementById('adminNavItem');
   if (nav && (p.includes('sys:manage') || p.includes('user:shop_manage'))) nav.style.display = '';
 })();
+
+let toastTimer;
 const showToast = (msg, type = 'error') => {
-  const t    = document.getElementById('toast');
+  const t = document.getElementById('toast');
   const icon = t.querySelector('.toast-icon');
   document.getElementById('toastMsg').textContent = msg;
   t.classList.toggle('toast-ok', type === 'ok');
   if (icon) icon.textContent = type === 'ok' ? '✓' : '⚠';
   t.classList.remove('hidden');
-  setTimeout(() => t.classList.add('hidden'), 3000);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.add('hidden'), 3000);
 };
 
 let currentCat = '';
+let keyword = '';
+let searchTimer = null;
+let cachedItems = [];
 
-async function loadItems(cat) {
+function buildListUrl() {
+  const p = new URLSearchParams();
+  if (currentCat) p.set('category', currentCat);
+  if (keyword.trim()) p.set('keyword', keyword.trim());
+  const q = p.toString();
+  return '/inventory/items' + (q ? '?' + q : '');
+}
+
+async function loadItems() {
   document.getElementById('loadingTip').style.display = 'block';
-  document.getElementById('itemGrid').style.display = 'none';
+  document.getElementById('tableWrap').style.display = 'none';
   document.getElementById('emptyTip').classList.add('hidden');
 
   try {
-    const url = '/inventory/items' + (cat ? '?category=' + encodeURIComponent(cat) : '');
-    const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + getToken() } });
+    const res = await fetch(buildListUrl(), { headers: { 'Authorization': 'Bearer ' + getToken() } });
     if (res.status === 401) { location.href = 'index.html'; return; }
     const data = await res.json();
     if (data.code !== 200) { showToast('加载失败'); return; }
-    renderItems(data.data || []);
-  } catch(e) {
+    cachedItems = data.data || [];
+    renderTable(cachedItems);
+  } catch (e) {
     showToast('网络错误');
   } finally {
     document.getElementById('loadingTip').style.display = 'none';
   }
 }
 
-function renderItems(items) {
-  const grid = document.getElementById('itemGrid');
+function renderTable(items) {
+  const tbody = document.getElementById('invTbody');
+  const chkAll = document.getElementById('chkAll');
+  chkAll.checked = false;
+
   if (items.length === 0) {
-    grid.style.display = 'none';
+    document.getElementById('tableWrap').style.display = 'none';
     document.getElementById('emptyTip').classList.remove('hidden');
+    tbody.innerHTML = '';
     return;
   }
-  grid.innerHTML = items.map(item => `
-    <div class="item-card">
-      <div class="item-del-btn" onclick="confirmDelete(${item.id}, '${(item.itemName||'').replace(/'/g,'')}')" title="删除">×</div>
-      <div class="item-img" onclick="useForTryon('${item.id}')">
-        ${item.mainImageUrl
-          ? `<img src="${item.mainImageUrl}" alt="${item.itemName}" loading="lazy">`
-          : '👗'}
-      </div>
-      <div class="item-info" onclick="useForTryon('${item.id}')">
-        <div class="item-name">${item.itemName || '未命名商品'}</div>
-        <div class="item-price">
-          ${item.salePrice != null ? `<span class="item-sale">¥${item.salePrice}</span>` : ''}
-          ${item.costPrice != null ? `<span class="item-cost">进价 ¥${item.costPrice}</span>` : ''}
-        </div>
-      </div>
-    </div>
-  `).join('');
-  grid.style.display = 'grid';
+
+  document.getElementById('emptyTip').classList.add('hidden');
+  document.getElementById('tableWrap').style.display = 'block';
+
+  tbody.innerHTML = items.map(item => {
+    const iid = item.id;
+    const sid = item.primarySkuId != null ? item.primarySkuId : '';
+    const name = (item.itemName || '未命名').replace(/"/g, '&quot;');
+    const img = item.mainImageUrl
+      ? `<img class="inv-thumb" src="${item.mainImageUrl}" alt="" loading="lazy">`
+      : `<div class="inv-thumb-ph">👗</div>`;
+    const sale = item.salePrice != null ? `¥${item.salePrice}` : '—';
+    const stock = item.stockQty != null ? item.stockQty : 0;
+    const skuOk = sid !== '';
+    const dis = skuOk ? '' : ' disabled title="无SKU，请补全库存数据"';
+    return `<tr data-item-id="${iid}">
+      <td class="col-chk"><input type="checkbox" class="inv-chk" data-item-id="${iid}" data-sku-id="${sid}"${dis}></td>
+      <td class="col-thumb">${img}</td>
+      <td><div class="inv-name" title="${name}">${item.itemName || '未命名'}</div></td>
+      <td class="inv-price">${sale}</td>
+      <td class="inv-stock">${stock}</td>
+      <td class="inv-actions">
+        <span class="link-try" data-item-id="${iid}">换装</span>
+        <span class="del" data-item-id="${iid}" data-name="${name}">删除</span>
+      </td>
+    </tr>`;
+  }).join('');
 }
 
-function useForTryon(itemId) {
-  location.href = 'index.html?fromInventory=' + itemId;
+function getSelection() {
+  return [...document.querySelectorAll('.inv-chk:checked')]
+    .filter(c => !c.disabled)
+    .map(c => ({
+      itemId: Number(c.dataset.itemId),
+      skuId: Number(c.dataset.skuId)
+    }))
+    .filter(x => x.itemId && x.skuId);
 }
 
-async function confirmDelete(itemId, name) {
-  if (!confirm(`确定删除「${name || '该商品'}」？删除后不可恢复。`)) return;
-  try {
-    const res  = await fetch(`/inventory/items/${itemId}`, {
-      method: 'DELETE', headers: { 'Authorization': 'Bearer ' + getToken() }
-    });
-    const data = await res.json();
-    if (data.code === 200) {
-      showToast('已删除', 'ok');
-      loadItems(currentCat);
-    } else {
-      showToast(data.msg || '删除失败');
-    }
-  } catch(e) {
-    showToast('网络错误');
-  }
+function getSelectedItemIds() {
+  return [...new Set(getSelection().map(s => s.itemId))];
 }
+
+document.getElementById('chkAll').addEventListener('change', function() {
+  document.querySelectorAll('.inv-chk:not(:disabled)').forEach(c => { c.checked = this.checked; });
+});
+
+document.getElementById('btnSelectAll').addEventListener('click', () => {
+  document.querySelectorAll('.inv-chk:not(:disabled)').forEach(c => { c.checked = true; });
+  document.getElementById('chkAll').checked = true;
+});
+document.getElementById('btnSelectNone').addEventListener('click', () => {
+  document.querySelectorAll('.inv-chk').forEach(c => { c.checked = false; });
+  document.getElementById('chkAll').checked = false;
+});
+
+document.getElementById('keywordInput').addEventListener('input', () => {
+  keyword = document.getElementById('keywordInput').value;
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => loadItems(), 350);
+});
 
 document.getElementById('catTabs').addEventListener('click', e => {
   const tab = e.target.closest('.cat-tab');
@@ -166,10 +243,99 @@ document.getElementById('catTabs').addEventListener('click', e => {
   document.querySelectorAll('.cat-tab').forEach(t => t.classList.remove('active'));
   tab.classList.add('active');
   currentCat = tab.dataset.cat;
-  loadItems(currentCat);
+  loadItems();
 });
 
-(async function init() {
+document.getElementById('invTbody').addEventListener('click', e => {
+  const tryEl = e.target.closest('.link-try');
+  if (tryEl) {
+    location.href = 'index.html?fromInventory=' + tryEl.dataset.itemId;
+    return;
+  }
+  const delEl = e.target.closest('.del');
+  if (delEl) {
+    const id = Number(delEl.dataset.itemId);
+    const name = delEl.dataset.name || '';
+    confirmDelete(id, name);
+  }
+});
+
+async function confirmDelete(itemId, name) {
+  if (!confirm(`确定删除「${name || '该商品'}」？删除后不可恢复。`)) return;
+  try {
+    const res = await fetch(`/inventory/items/${itemId}`, {
+      method: 'DELETE', headers: { 'Authorization': 'Bearer ' + getToken() }
+    });
+    const data = await res.json();
+    if (data.code === 200) {
+      showToast('已删除', 'ok');
+      loadItems();
+    } else {
+      showToast(data.msg || '删除失败');
+    }
+  } catch (e) {
+    showToast('网络错误');
+  }
+}
+
+document.getElementById('btnBatchDel').addEventListener('click', async () => {
+  const ids = getSelectedItemIds();
+  if (!ids.length) { showToast('请先勾选商品'); return; }
+  if (!confirm(`确定批量删除 ${ids.length} 个商品？不可恢复。`)) return;
+  try {
+    const res = await fetch('/inventory/items/batch-delete', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ itemIds: ids })
+    });
+    const data = await res.json();
+    if (data.code === 200) {
+      showToast('批量删除成功', 'ok');
+      loadItems();
+    } else {
+      showToast(data.msg || '删除失败');
+    }
+  } catch (e) {
+    showToast('网络错误');
+  }
+});
+
+document.getElementById('btnBatchStock').addEventListener('click', async () => {
+  const ids = getSelectedItemIds();
+  if (!ids.length) { showToast('请先勾选商品'); return; }
+  const v = prompt('每个选中商品的主 SKU 要增加多少库存？（可填负数扣减）', '1');
+  if (v === null) return;
+  const delta = parseInt(v, 10);
+  if (Number.isNaN(delta) || delta === 0) { showToast('请输入非 0 整数'); return; }
+  try {
+    const res = await fetch('/inventory/items/batch-add-stock', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ itemIds: ids, delta })
+    });
+    const data = await res.json();
+    if (data.code === 200) {
+      showToast('库存已更新', 'ok');
+      loadItems();
+    } else {
+      showToast(data.msg || '更新失败');
+    }
+  } catch (e) {
+    showToast('网络错误');
+  }
+});
+
+document.getElementById('btnBatchOrder').addEventListener('click', () => {
+  const sel = getSelection();
+  if (!sel.length) { showToast('请先勾选商品'); return; }
+  const bad = sel.filter(s => !s.skuId);
+  if (bad.length) { showToast('所选商品缺少 SKU，无法开单'); return; }
+  const lines = sel.map(s => ({ itemId: s.itemId, skuId: s.skuId, qty: 1 }));
+  sessionStorage.setItem('sm_order_prefill', JSON.stringify(lines));
+  location.href = 'order.html?fromBatch=1';
+});
+
+(function init() {
   const token = getToken();
   if (!token) { location.href = 'index.html'; return; }
   const stored = localStorage.getItem('sm_userInfo');
@@ -180,9 +346,9 @@ document.getElementById('catTabs').addEventListener('click', e => {
         document.getElementById('userName').textContent = info.username;
         document.getElementById('userChip').style.display = 'flex';
       }
-    } catch(e) {}
+    } catch (e) {}
   }
-  await loadItems('');
+  loadItems();
 })();
 </script>
 </body>

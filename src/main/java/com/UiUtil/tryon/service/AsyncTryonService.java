@@ -1,5 +1,9 @@
 package com.UiUtil.tryon.service;
 
+/**
+ * 异步换装生图服务：在独立线程中调用火山引擎换装接口，将结果图片上传至 TOS，
+ * 更新 tryon_record 状态，并记录本次 Token 消耗到 usage_log。
+ */
 import com.UiUtil.auth.service.UsageLogService;
 import com.UiUtil.entity.UploadImageCache;
 import com.UiUtil.mapper.UploadImageCacheMapper;
@@ -74,9 +78,13 @@ public class AsyncTryonService {
             upd.setUploadSecond(result.getUploadSecond()   != null ? String.valueOf(result.getUploadSecond())   : null);
             upd.setGenerateSecond(result.getGenerateSecond() != null ? String.valueOf(result.getGenerateSecond()) : null);
             upd.setTotalSecond(result.getTotalSecond()     != null ? String.valueOf(result.getTotalSecond())     : null);
+            if (result.getTokenUsage() != null) {
+                upd.setTokenUsed(result.getTokenUsage().intValue());
+            }
             recordMapper.updateById(upd);
 
-            usageLogService.record("recommend", 0);
+            int tokenUsed = result.getTokenUsage() != null ? result.getTokenUsage().intValue() : 0;
+            usageLogService.record("recommend", tokenUsed);
             log.info("异步换装完成 taskId={} success={}", taskId, result.isSuccess());
 
         } catch (Exception e) {
@@ -86,6 +94,7 @@ public class AsyncTryonService {
             upd.setStatus(STATUS_FAILED);
             upd.setResultUrls(null);
             recordMapper.updateById(upd);
+            usageLogService.record("recommend", 0);
         }
     }
 

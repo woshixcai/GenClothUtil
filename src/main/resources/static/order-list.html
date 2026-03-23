@@ -74,14 +74,20 @@
 
 <nav class="bottom-nav">
   <a class="bnav-item" href="index.html"><span class="bnav-icon">🏠</span><span class="bnav-label">换装</span></a>
-  <a class="bnav-item" href="inventory.html"><span class="bnav-icon">📦</span><span class="bnav-label">服装库</span></a>
-  <a class="bnav-item bnav-add" href="add-item.html"><span class="bnav-icon">＋</span><span class="bnav-label">入库</span></a>
-  <a class="bnav-item" href="order.html"><span class="bnav-icon">🧾</span><span class="bnav-label">开单</span></a>
-  <a class="bnav-item active" href="order-list.html"><span class="bnav-icon">📊</span><span class="bnav-label">订单</span></a>
+  <a class="bnav-item active" href="ops.html"><span class="bnav-icon">🧾</span><span class="bnav-label">进销存</span></a>
+  <a class="bnav-item" href="admin.html" id="adminNavItem" style="display:none"><span class="bnav-icon">⚙️</span><span class="bnav-label">系统管理</span></a>
 </nav>
 
 <script>
 const getToken = () => localStorage.getItem('sm_token') || '';
+
+// 系统管理导航显隐（仅管理员）
+(function() {
+  const perms = JSON.parse(localStorage.getItem('sm_perms') || '[]');
+  const show  = perms.includes('sys:manage') || perms.includes('user:shop_manage');
+  const nav   = document.getElementById('adminNavItem');
+  if (nav) nav.style.display = show ? '' : 'none';
+})();
 
 let toastTimer;
 const showToast = (msg, dur = 3000, type = 'error') => {
@@ -97,8 +103,13 @@ const showToast = (msg, dur = 3000, type = 'error') => {
 
 let orders = [];
 
-/* ── 日期工具 ─────────────────────────────────── */
-function fmt(d) { return d.toISOString().slice(0, 10); }
+/* ── 日期工具（使用本地时区，避免 toISOString 的 UTC 偏移） ───────────────── */
+function fmt(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 function setRange(s, e) {
   document.getElementById('startDate').value = fmt(s);
   document.getElementById('endDate').value   = fmt(e);
@@ -124,7 +135,13 @@ document.getElementById('quickDates').addEventListener('click', e => {
 async function loadOrders() {
   const start = document.getElementById('startDate').value;
   let   end   = document.getElementById('endDate').value;
-  if (end) { const d = new Date(end); d.setDate(d.getDate()+1); end = fmt(d); }
+  // endDate 使用“日期”输入框：new Date('YYYY-MM-DD') 会按 UTC 解析，容易跨天
+  if (end) {
+    const parts = end.split('-');
+    const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    d.setDate(d.getDate() + 1);
+    end = fmt(d);
+  }
 
   document.getElementById('loadingTip').style.display = 'block';
   document.getElementById('orderList').innerHTML = '';

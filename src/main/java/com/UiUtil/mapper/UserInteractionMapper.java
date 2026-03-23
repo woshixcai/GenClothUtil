@@ -1,5 +1,8 @@
 package com.UiUtil.mapper;
 
+/**
+ * 用户交互记录数据访问层，支持按换装记录 ID 和交互类型（like/dislike）查询。
+ */
 import com.UiUtil.entity.UserInteraction;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;

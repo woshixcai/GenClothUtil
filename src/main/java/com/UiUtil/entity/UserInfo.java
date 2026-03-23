@@ -1,5 +1,8 @@
 package com.UiUtil.entity;
 
+/**
+ * 用户基础信息实体，对应 user_info 表，存储用户的扩展信息（如头像、昵称等）。
+ */
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;

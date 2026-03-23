@@ -81,14 +81,14 @@
       <div class="sum-value" id="totalCost">¥0</div>
     </div>
     <div class="sum-card">
-      <div class="sum-label">出库笔数</div>
-      <div class="sum-value" id="orderCount">0</div>
+      <div class="sum-label">单据（销售/退货）</div>
+      <div class="sum-value" id="orderCount" style="font-size:16px">0</div>
     </div>
   </div>
 
   <!-- 分商品明细 -->
   <div class="detail-wrap" id="detailWrap" style="display:none">
-    <div class="detail-title">分商品明细</div>
+    <div class="detail-title">分 SKU 明细（按颜色/尺码分别统计）</div>
     <table class="detail-table">
       <thead>
         <tr>
@@ -108,14 +108,20 @@
 
 <nav class="bottom-nav">
   <a class="bnav-item" href="index.html"><span class="bnav-icon">🏠</span><span class="bnav-label">换装</span></a>
-  <a class="bnav-item" href="inventory.html"><span class="bnav-icon">📦</span><span class="bnav-label">服装库</span></a>
-  <a class="bnav-item bnav-add" href="add-item.html"><span class="bnav-icon">＋</span><span class="bnav-label">入库</span></a>
-  <a class="bnav-item" href="order.html"><span class="bnav-icon">🧾</span><span class="bnav-label">开单</span></a>
-  <a class="bnav-item active" href="order-list.html"><span class="bnav-icon">📊</span><span class="bnav-label">订单</span></a>
+  <a class="bnav-item active" href="ops.html"><span class="bnav-icon">🧾</span><span class="bnav-label">进销存</span></a>
+  <a class="bnav-item" href="admin.html" id="adminNavItem" style="display:none"><span class="bnav-icon">⚙️</span><span class="bnav-label">系统管理</span></a>
 </nav>
 
 <script>
 const getToken = () => localStorage.getItem('sm_token') || '';
+
+// 系统管理导航显隐（仅管理员）
+(function() {
+  const perms = JSON.parse(localStorage.getItem('sm_perms') || '[]');
+  const show  = perms.includes('sys:manage') || perms.includes('user:shop_manage');
+  const nav   = document.getElementById('adminNavItem');
+  if (nav) nav.style.display = show ? '' : 'none';
+})();
 
 let toastTimer;
 const showToast = (msg, type = 'error') => {
@@ -131,8 +137,11 @@ const showToast = (msg, type = 'error') => {
 
 /* ── 日期工具 ─────────────────────────────────── */
 function fmt(d) {
-  // 返回 yyyy-MM-dd
-  return d.toISOString().slice(0, 10);
+  // 返回 yyyy-MM-dd（使用本地时区）
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 function setDateRange(start, end) {
   document.getElementById('startDate').value = fmt(start);
@@ -174,7 +183,8 @@ async function loadReport() {
   // endDate 查询时需要包含当天，传 +1 天
   let endParam = endDate;
   if (endDate) {
-    const d = new Date(endDate);
+    const parts = endDate.split('-');
+    const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
     d.setDate(d.getDate() + 1);
     endParam = fmt(d);
   }
@@ -207,7 +217,9 @@ function renderReport(report) {
   document.getElementById('totalSales').textContent  = '¥' + (s.totalSales  || 0).toFixed(2);
   document.getElementById('grossProfit').textContent = '¥' + (s.grossProfit || 0).toFixed(2);
   document.getElementById('totalCost').textContent   = '¥' + (s.totalCost   || 0).toFixed(2);
-  document.getElementById('orderCount').textContent  = s.orderCount || 0;
+  const saleN = s.saleOrderCount != null ? s.saleOrderCount : (s.orderCount || 0);
+  const refN  = s.refundOrderCount != null ? s.refundOrderCount : 0;
+  document.getElementById('orderCount').textContent = refN ? `${saleN} / ${refN} 退` : String(saleN);
   document.getElementById('summaryGrid').style.display = 'grid';
 
   const items = report.items || [];
@@ -222,7 +234,7 @@ function renderReport(report) {
     return `<tr>
       <td>
         <div style="font-weight:600;font-size:13px">${item.itemName || '-'}</div>
-        <div style="font-size:11px;color:var(--text-3)">${item.category || ''}</div>
+        <div style="font-size:11px;color:var(--text-3)">${item.skuDesc || item.category || ''}</div>
       </td>
       <td class="right">${item.qty}</td>
       <td class="right">¥${parseFloat(item.sales || 0).toFixed(2)}</td>

@@ -1,5 +1,9 @@
 package com.UiUtil.shared.util;
 
+/**
+ * JWT 工具类：基于 JJWT 生成和解析 Token，Token 中携带用户 ID、用户名及角色信息，
+ * 默认有效期由配置项 jwt.expiration 控制。
+ */
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;

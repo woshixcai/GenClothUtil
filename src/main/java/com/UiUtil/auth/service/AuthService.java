@@ -1,5 +1,8 @@
 package com.UiUtil.auth.service;
 
+/**
+ * 认证服务：处理用户自助注册、账号登录及 JWT Token 签发，密码使用 BCrypt 加密存储。
+ */
 import cn.hutool.crypto.digest.BCrypt;
 import com.UiUtil.shared.context.UserContext;
 import com.UiUtil.auth.dto.LoginRequest;

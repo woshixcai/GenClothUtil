@@ -1,5 +1,8 @@
 package com.UiUtil.auth.mapper;
 
+/**
+ * 权限数据访问层，支持按用户 ID 关联查询其拥有的权限列表。
+ */
 import com.UiUtil.auth.entity.SysPermission;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;

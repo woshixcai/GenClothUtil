@@ -1,5 +1,9 @@
 package com.UiUtil.shared.util;
 
+/**
+ * 分布式唯一 ID 生成工具，基于机器 MAC 地址 + 进程 PID + 时间戳 + 原子序列号实现，
+ * 生成全局唯一的数字型 ID，用于商品编号、店铺编号等业务主键生成。
+ */
 import java.lang.management.ManagementFactory;
 import java.net.InetAddress;
 import java.net.NetworkInterface;

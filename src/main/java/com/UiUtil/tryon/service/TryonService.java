@@ -1,5 +1,9 @@
 package com.UiUtil.tryon.service;
 
+/**
+ * 换装生图主服务：校验每日配额与 AI 使用权限，读取用户偏好构建负面提示词，
+ * 创建任务记录后提交异步生图任务，并提供任务状态查询和历史记录接口。
+ */
 import com.UiUtil.auth.service.QuotaService;
 import com.UiUtil.shared.context.UserContext;
 import com.UiUtil.tryon.entity.TryonRecord;

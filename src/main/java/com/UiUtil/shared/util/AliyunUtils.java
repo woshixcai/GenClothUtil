@@ -1,5 +1,9 @@
 package com.UiUtil.shared.util;
 
+/**
+ * 阿里云 DashScope 视觉语言大模型工具类，封装 qwen-vl-plus 多模态接口调用，
+ * 支持图片识别并返回文本内容及 Token 消耗量（通过反射兼容不同 SDK 版本）。
+ */
 import com.alibaba.dashscope.aigc.multimodalconversation.MultiModalConversation;
 import com.alibaba.dashscope.aigc.multimodalconversation.MultiModalConversationParam;
 import com.alibaba.dashscope.aigc.multimodalconversation.MultiModalConversationResult;
@@ -33,7 +37,31 @@ public class AliyunUtils {
      * 图像识别，使用 qwen2-vl-7b-instruct（比 qwen-vl-plus 快约 3-5 倍）。
      * 建议前端传 512px 以内的压缩图，进一步提速。
      */
+    public static class QwenTextUsageResult {
+        private final String text;
+        private final Integer tokenUsed;
+
+        public QwenTextUsageResult(String text, Integer tokenUsed) {
+            this.text = text;
+            this.tokenUsed = tokenUsed;
+        }
+
+        public String getText() { return text; }
+        public Integer getTokenUsed() { return tokenUsed; }
+    }
+
     public String qWenVLPlus(MultipartFile file, String text) throws ApiException, NoApiKeyException, UploadFileException {
+        return qWenVLPlusWithUsage(file, text).getText();
+    }
+
+    /**
+     * 带 token 用量的多模态调用结果：
+     * - text：模型输出文本
+     * - tokenUsed：尝试从 result.usage 中提取 totalTokens/outputTokens
+     *
+     * 注意：dashscope 返回结构可能会随 SDK 版本变化，因此 tokenUsed 的读取使用反射做兼容。
+     */
+    public QwenTextUsageResult qWenVLPlusWithUsage(MultipartFile file, String text) throws ApiException, NoApiKeyException, UploadFileException {
         try {
             String b64 = fileToBase64(file);
             MultiModalConversation conv = new MultiModalConversation();
@@ -49,10 +77,41 @@ public class AliyunUtils {
                     .maxTokens(200)
                     .build();
             MultiModalConversationResult result = conv.call(param);
-            return result.getOutput().getChoices().get(0).getMessage().getContent().get(0).get("text").toString();
+
+            String outText = result.getOutput().getChoices().get(0).getMessage().getContent().get(0).get("text").toString();
+
+            Integer tokenUsed = 0;
+            try {
+                java.lang.reflect.Method usageMethod = result.getClass().getMethod("getUsage");
+                Object usageObj = usageMethod.invoke(result);
+                if (usageObj != null) {
+                    tokenUsed = extractIntFromUsage(usageObj, "getTotalTokens", "getOutputTokens", "getInputTokens");
+                }
+            } catch (Exception ignore) {
+                // SDK 字段可能变化：兜底 tokenUsed=0
+            }
+
+            return new QwenTextUsageResult(outText, tokenUsed);
         } catch (IOException e) {
             throw new RuntimeException(e.getMessage());
         }
+    }
+
+    private static Integer extractIntFromUsage(Object usageObj, String... methodNames) {
+        if (usageObj == null || methodNames == null) return 0;
+        for (String mn : methodNames) {
+            try {
+                java.lang.reflect.Method m = usageObj.getClass().getMethod(mn);
+                Object val = m.invoke(usageObj);
+                if (val instanceof Number) {
+                    long l = ((Number) val).longValue();
+                    if (l > 0) return (int) l;
+                }
+            } catch (Exception ignore) {
+                // try next method
+            }
+        }
+        return 0;
     }
 
     /**

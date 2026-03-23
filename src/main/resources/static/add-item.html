@@ -11,7 +11,6 @@
     .field-row     { display:flex; gap:10px; }
     .field         { display:flex; flex-direction:column; gap:4px; flex:1; }
     .field-label   { font-size:13px; font-weight:500; color:var(--text-2,#555); }
-    textarea.field-input { resize:vertical; min-height:60px; }
     select.field-input   { appearance:none; }
 
     /* AI 穿搭 toggle 区 */
@@ -105,24 +104,23 @@
         <img class="preview-img hidden" id="previewImg" alt="预览">
       </div>
     </div>
+    <p style="font-size:12px;color:var(--text-3);margin:8px 0 0;line-height:1.5">
+      可先填写下方「商品信息」，再上传图片；<strong>入库前须上传主图</strong>。AI 识别为可选，点按钮即可填充名称与分类。
+    </p>
     <button class="btn-gen" id="recognizeBtn" disabled style="margin-top:12px;width:100%">
-      <span class="btn-gen-star">✦</span><span id="recognizeBtnText">AI 识别商品名称</span>
+      <span class="btn-gen-star">✦</span><span id="recognizeBtnText">AI 识别商品名称（可选）</span>
     </button>
   </section>
 
-  <!-- Step 02: 商品信息 -->
-  <section class="block hidden" id="itemFormSection">
+  <!-- Step 02: 商品信息（进入页面即可填写，不必先识别） -->
+  <section class="block" id="itemFormSection">
     <div class="block-label">
       <span class="block-num">02</span><span class="block-title">填写商品信息</span>
     </div>
     <div class="form-stack">
       <div class="field">
         <label class="field-label">商品名称 *</label>
-        <input class="field-input" type="text" id="itemName" placeholder="AI已识别，可修改">
-      </div>
-      <div class="field">
-        <label class="field-label">AI 描述</label>
-        <textarea class="field-input" id="itemDesc" rows="2" placeholder="商品描述"></textarea>
+        <input class="field-input" type="text" id="itemName" placeholder="可手动填写，或用上方 AI 识别填充">
       </div>
       <div class="field">
         <label class="field-label">分类</label>
@@ -145,12 +143,12 @@
       <div class="field-row">
         <div class="field">
           <label class="field-label">颜色</label>
-          <input class="field-input" type="text" id="skuColor" placeholder="如：米白色">
+          <input class="field-input" type="text" id="skuColor" placeholder="随商品名称自动识别，可改">
         </div>
         <div class="field">
           <label class="field-label">尺码</label>
           <select class="field-input" id="skuSize">
-            <option value="">请选择</option>
+            <option value="均码" selected>均码</option>
             <option>XS</option><option>S</option><option>M</option>
             <option>L</option><option>XL</option><option>XXL</option>
           </select>
@@ -164,7 +162,7 @@
   </section>
 
   <!-- Step 03: 生成 AI 穿搭（可选） -->
-  <section class="block hidden" id="tryonSection">
+  <section class="block" id="tryonSection">
     <div class="block-label">
       <span class="block-num">03</span><span class="block-title">生成 AI 穿搭效果（可选）</span>
     </div>
@@ -216,7 +214,7 @@
   </section>
 
   <!-- 保存按钮 -->
-  <section class="block hidden" id="saveBtnSection">
+  <section class="block" id="saveBtnSection">
     <button class="btn-gen" id="saveBtn" style="width:100%">
       <span class="btn-gen-star">✦</span><span id="saveBtnText">确认入库</span>
     </button>
@@ -240,13 +238,12 @@
   <div class="notify-close" id="notifyClose">×</div>
 </div>
 
-<!-- 底部导航 -->
+<!-- 底部导航（按功能分区收纳） -->
 <nav class="bottom-nav">
   <a class="bnav-item" href="index.html"><span class="bnav-icon">🏠</span><span class="bnav-label">换装</span></a>
-  <a class="bnav-item" href="inventory.html"><span class="bnav-icon">📦</span><span class="bnav-label">服装库</span></a>
-  <a class="bnav-item bnav-add active" href="add-item.html"><span class="bnav-icon">＋</span><span class="bnav-label">入库</span></a>
+  <a class="bnav-item active" href="ops.html"><span class="bnav-icon">🧾</span><span class="bnav-label">进销存</span></a>
   <a class="bnav-item" href="admin.html" id="adminNavItem" style="display:none">
-    <span class="bnav-icon">⚙️</span><span class="bnav-label">管理</span>
+    <span class="bnav-icon">⚙️</span><span class="bnav-label">系统管理</span>
   </a>
 </nav>
 
@@ -277,9 +274,38 @@ const showToast = (msg, dur = 3500, type = 'error') => {
   if (nav) nav.style.display = show ? '' : 'none';
 })();
 
+/* ── 从商品名称解析颜色（与后端 InventoryService 关键词一致） ── */
+const COLOR_KWS = [
+  '混色', '花色', '条纹', '格子',
+  '黑色', '白色', '米白', '米色',
+  '棕色', '咖色', '驼色', '褐色',
+  '灰色', '银灰',
+  '红色', '酒红', '玫红', '粉色', '紫色',
+  '蓝色', '深蓝', '浅蓝', '藏蓝',
+  '绿色', '墨绿', '橄榄绿',
+  '黄色', '姜黄', '橙色'
+];
+function extractColorFromText(text) {
+  if (!text) return '';
+  const s = String(text).trim();
+  if (!s) return '';
+  for (const kw of COLOR_KWS) {
+    if (s.includes(kw)) return kw;
+  }
+  return '';
+}
+function syncColorFromItemName() {
+  const name = document.getElementById('itemName').value;
+  const c = extractColorFromText(name);
+  if (c) document.getElementById('skuColor').value = c;
+}
+
 /* ── 文件变量 ─────────────────────────────────── */
 let photoFile = null;
 let refFile   = null;
+
+document.getElementById('itemName').addEventListener('input', () => syncColorFromItemName());
+document.getElementById('itemName').addEventListener('blur', () => syncColorFromItemName());
 
 /* ── Step 01：拍照 ────────────────────────────── */
 document.getElementById('photoCard').addEventListener('click', () =>
@@ -300,6 +326,10 @@ document.getElementById('photoInput').addEventListener('change', e => {
   reader.readAsDataURL(photoFile);
 
   document.getElementById('recognizeBtn').disabled = false;
+
+  // 第 2 步起默认已展示；选好图后启用识别并滚动提示可点识别
+  loadQuota();
+  document.getElementById('recognizeBtn').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 });
 
 /* ── AI 识别 ──────────────────────────────────── */
@@ -325,7 +355,7 @@ document.getElementById('recognizeBtn').addEventListener('click', async () => {
     const data = await res.json();
     if (data.code === 200 && data.data) {
       document.getElementById('itemName').value = data.data.name || '';
-      document.getElementById('itemDesc').value  = data.data.description || '';
+      syncColorFromItemName();
       const cat = data.data.category || '';
       if (cat) {
         const sel = document.getElementById('itemCategory');
@@ -339,15 +369,10 @@ document.getElementById('recognizeBtn').addEventListener('click', async () => {
     showToast('网络错误，请手动填写');
   }
 
-  // 展示后续区域
-  document.getElementById('itemFormSection').classList.remove('hidden');
-  document.getElementById('tryonSection').classList.remove('hidden');
-  document.getElementById('saveBtnSection').classList.remove('hidden');
-  document.getElementById('itemFormSection').scrollIntoView({ behavior: 'smooth' });
   btnTxt.textContent = 'AI 识别商品名称';
   btnEl.disabled     = false;
 
-  loadQuota();
+  // 识别成功后已自动填充字段；后续区域在“选择图片”时已展示，无需再重复展开
 });
 
 /* ── 剩余次数显示 ─────────────────────────────── */
@@ -452,14 +477,12 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
     const cat  = document.getElementById('itemCategory').value;
     const cost = document.getElementById('costPrice').value;
     const sale = document.getElementById('salePrice').value;
-    const desc = document.getElementById('itemDesc').value;
     const color= document.getElementById('skuColor').value;
     const size = document.getElementById('skuSize').value;
     const qty  = document.getElementById('stockQty').value;
     if (cat)  fd.append('category', cat);
     if (cost) fd.append('costPrice', cost);
     if (sale) fd.append('salePrice', sale);
-    if (desc) fd.append('description', desc);
     if (color)fd.append('color', color);
     if (size) fd.append('size', size);
     if (qty)  fd.append('stockQty', qty);
@@ -616,6 +639,9 @@ function showNotify(state, imgs, style, scene, errMsg) {
 document.getElementById('notifyClose').addEventListener('click', () => {
   document.getElementById('notifyCard').classList.add('hidden');
 });
+
+/* 进入页面即可填第 2 步：提前拉取配额展示 */
+if (getToken()) loadQuota();
 </script>
 </body>
 </html>

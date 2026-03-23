@@ -1,5 +1,8 @@
 package com.UiUtil;
 
+/**
+ * Spring Boot 应用主入口，启用异步任务支持（@EnableAsync）。
+ */
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableAsync;

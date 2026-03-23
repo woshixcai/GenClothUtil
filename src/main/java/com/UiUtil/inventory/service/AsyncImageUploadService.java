@@ -1,5 +1,8 @@
 package com.UiUtil.inventory.service;
 
+/**
+ * 异步图片上传服务：在商品入库后台将图片上传至火山引擎 TOS，并将图片记录写入 cloth_image 表。
+ */
 import com.UiUtil.inventory.entity.ClothImage;
 import com.UiUtil.inventory.mapper.ClothImageMapper;
 import com.UiUtil.shared.util.ImageUtils;

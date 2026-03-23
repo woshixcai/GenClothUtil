@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="gentle-luxury">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>StyleMe · 进销存</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .ops-wrap { padding-top: 72px; padding-bottom: 92px; }
+    .ops-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 0 16px; }
+    .ops-card {
+      background: var(--bg-card,#fff);
+      border: 1px solid var(--border,#eee);
+      border-radius: 16px;
+      padding: 18px 12px;
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      min-height: 116px;
+      box-shadow: var(--shadow-s);
+      transition: transform .2s var(--ease), box-shadow .2s var(--ease);
+    }
+    .ops-card:active { transform: translateY(1px); box-shadow: var(--shadow-xs, var(--shadow-s)); }
+    .ops-icon { font-size: 28px; }
+    .ops-title { font-size: 14px; font-weight: 800; color: var(--text-1,#222); }
+    .ops-sub   { font-size: 12px; color: var(--text-3,#999); }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-inner">
+    <div class="logo">
+      <span class="logo-mark">✦</span>
+      <span class="logo-name">StyleMe</span>
+      <span class="logo-tag">进销存</span>
+    </div>
+    <div class="header-right">
+      <div class="auth-wrap">
+        <button class="btn-login" onclick="location.href='index.html'" id="loginBtn" style="display:none">登录后使用</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="main ops-wrap">
+  <div class="ops-grid">
+    <a class="ops-card" href="inventory.html">
+      <div class="ops-icon">📦</div>
+      <div class="ops-title">服装库</div>
+      <div class="ops-sub">展示 & 管理商品</div>
+    </a>
+
+    <a class="ops-card" href="add-item.html">
+      <div class="ops-icon">＋</div>
+      <div class="ops-title">入库</div>
+      <div class="ops-sub">拍照 AI 识别并入库</div>
+    </a>
+
+    <a class="ops-card" href="order.html">
+      <div class="ops-icon">🧾</div>
+      <div class="ops-title">开单</div>
+      <div class="ops-sub">销售 / 添加商品</div>
+    </a>
+
+    <a class="ops-card" href="order-list.html">
+      <div class="ops-icon">📊</div>
+      <div class="ops-title">订单</div>
+      <div class="ops-sub">退货 / 查看明细</div>
+    </a>
+
+    <a class="ops-card" href="report.html" style="grid-column:1/-1">
+      <div class="ops-icon">📈</div>
+      <div class="ops-title">销售报表</div>
+      <div class="ops-sub">按日期统计毛利</div>
+    </a>
+
+    <a class="ops-card" href="receipt-add.html" style="grid-column:1/-1">
+      <div class="ops-icon">🧾</div>
+      <div class="ops-title">进货单入库</div>
+      <div class="ops-sub">小票识别 → 逐行入库</div>
+    </a>
+  </div>
+</main>
+
+<nav class="bottom-nav">
+  <a class="bnav-item" href="index.html">
+    <span class="bnav-icon">🏠</span><span class="bnav-label">换装</span>
+  </a>
+  <a class="bnav-item active" href="ops.html">
+    <span class="bnav-icon">🧾</span><span class="bnav-label">进销存</span>
+  </a>
+  <a class="bnav-item" href="admin.html" id="adminNavItem" style="display:none">
+    <span class="bnav-icon">⚙️</span><span class="bnav-label">系统管理</span>
+  </a>
+</nav>
+
+<script>
+  const getToken = () => localStorage.getItem('sm_token') || '';
+  const getPerms = () => JSON.parse(localStorage.getItem('sm_perms') || '[]');
+
+  (function init() {
+    const token = getToken();
+    if (!token) {
+      // 未登录：保持在 ops 页但提示按钮可跳转；也可以直接强制跳转
+      const btn = document.getElementById('loginBtn');
+      if (btn) btn.style.display = '';
+      return;
+    }
+
+    const p = getPerms();
+    const showAdmin = p.includes('sys:manage') || p.includes('user:shop_manage');
+    const nav = document.getElementById('adminNavItem');
+    if (nav) nav.style.display = showAdmin ? '' : 'none';
+  })();
+</script>
+
+</body>
+</html>
+

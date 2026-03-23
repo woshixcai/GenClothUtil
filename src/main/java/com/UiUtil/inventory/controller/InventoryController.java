@@ -1,5 +1,10 @@
 package com.UiUtil.inventory.controller;
 
+/**
+ * 服装库存接口：支持商品入库、列表查询、删除，以及 AI 图片识别和进货单（小票）一键导入。
+ */
+import com.UiUtil.inventory.dto.BatchAddStockRequest;
+import com.UiUtil.inventory.dto.BatchItemIdsRequest;
 import com.UiUtil.inventory.entity.ClothItem;
 import com.UiUtil.inventory.entity.ClothSku;
 import com.UiUtil.inventory.service.InventoryService;
@@ -45,14 +50,38 @@ public class InventoryController {
     @GetMapping("/items")
     public ApiResult<List<ClothItem>> listItems(
             @RequestParam(required = false) String category,
-            @RequestParam(required = false) Integer status) {
-        return ApiResult.ok(inventoryService.listItems(category, status));
+            @RequestParam(required = false) Integer status,
+            @RequestParam(required = false) String keyword) {
+        return ApiResult.ok(inventoryService.listItems(category, status, keyword));
     }
 
     @RequirePermission("inventory:manage")
     @DeleteMapping("/items/{itemId}")
     public ApiResult<Void> deleteItem(@PathVariable Long itemId) {
         inventoryService.deleteItem(itemId);
+        return ApiResult.ok();
+    }
+
+    @RequirePermission("inventory:manage")
+    @PostMapping("/items/batch-delete")
+    public ApiResult<Void> batchDeleteItems(@RequestBody BatchItemIdsRequest body) {
+        if (body == null || body.getItemIds() == null) {
+            return ApiResult.fail("itemIds 不能为空");
+        }
+        inventoryService.deleteItemsBatch(body.getItemIds());
+        return ApiResult.ok();
+    }
+
+    @RequirePermission("inventory:manage")
+    @PostMapping("/items/batch-add-stock")
+    public ApiResult<Void> batchAddStock(@RequestBody BatchAddStockRequest body) {
+        if (body == null || body.getItemIds() == null || body.getItemIds().isEmpty()) {
+            return ApiResult.fail("itemIds 不能为空");
+        }
+        if (body.getDelta() == null) {
+            return ApiResult.fail("delta 不能为空");
+        }
+        inventoryService.batchAddStockForItems(body.getItemIds(), body.getDelta());
         return ApiResult.ok();
     }
 
@@ -76,5 +105,21 @@ public class InventoryController {
                                       @RequestParam int status) {
         inventoryService.setItemStatus(itemId, status);
         return ApiResult.ok();
+    }
+
+    // ────────────────────────────────────────────────
+    // 进货单/小票：识别 → 入库（按图片识别）
+    // ────────────────────────────────────────────────
+
+    @RequirePermission("inventory:manage")
+    @PostMapping("/receipt/recognize")
+    public ApiResult<Map<String, Object>> recognizeReceipt(@RequestParam("image") MultipartFile image) throws Exception {
+        return ApiResult.ok(inventoryService.parseReceipt(image));
+    }
+
+    @RequirePermission("inventory:manage")
+    @PostMapping("/receipt/import")
+    public ApiResult<Map<String, Object>> importReceipt(@RequestParam("image") MultipartFile image) throws Exception {
+        return ApiResult.ok(inventoryService.importReceipt(image));
     }
 }

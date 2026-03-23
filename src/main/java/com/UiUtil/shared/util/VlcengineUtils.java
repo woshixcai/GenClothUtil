@@ -1,5 +1,9 @@
 package com.UiUtil.shared.util;
 
+/**
+ * 火山引擎 ARK 大模型工具类，封装换装生图（虚拟试穿）接口调用，
+ * 以参考图 + 服装图为输入，返回生成图片 URL 列表及 Token 消耗量。
+ */
 import com.UiUtil.shared.result.HuoShanResult;
 import com.volcengine.ark.runtime.model.images.generation.GenerateImagesRequest;
 import com.volcengine.ark.runtime.model.images.generation.ImageGenStreamEvent;

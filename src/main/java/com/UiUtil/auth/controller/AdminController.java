@@ -1,5 +1,8 @@
 package com.UiUtil.auth.controller;
 
+/**
+ * 超级管理员接口：管理店铺、账号权限，以及查看各店铺/账号的月度 Token 消耗报表。
+ */
 import com.UiUtil.auth.entity.SysShop;
 import com.UiUtil.auth.entity.SysUser;
 import com.UiUtil.auth.service.UserMgmtService;
@@ -71,5 +74,19 @@ public class AdminController {
     @GetMapping("/usage/shops/{shopId}/users")
     public ApiResult<List<Map<String, Object>>> usageByUser(@PathVariable Long shopId) {
         return ApiResult.ok(userMgmtService.usageSummaryByUser(shopId));
+    }
+
+    /** 超管：按月按店铺统计 token 用量（用于“每个月一条记录”展示） */
+    @RequirePermission("sys:manage")
+    @GetMapping("/usage/monthly/shops")
+    public ApiResult<List<Map<String, Object>>> usageMonthlyByShop() {
+        return ApiResult.ok(userMgmtService.usageMonthlySummaryByShop());
+    }
+
+    /** 超管：按月按店铺用户统计 token 用量 */
+    @RequirePermission("sys:manage")
+    @GetMapping("/usage/monthly/shops/{shopId}/users")
+    public ApiResult<List<Map<String, Object>>> usageMonthlyByUser(@PathVariable Long shopId) {
+        return ApiResult.ok(userMgmtService.usageMonthlySummaryByUser(shopId));
     }
 }

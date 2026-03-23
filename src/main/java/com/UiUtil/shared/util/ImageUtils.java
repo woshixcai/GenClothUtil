@@ -1,5 +1,9 @@
 package com.UiUtil.shared.util;
 
+/**
+ * 火山引擎 TOS 对象存储工具类，封装图片上传逻辑，上传后去除签名参数直接返回永久公开 URL，
+ * 同时提供将历史对象键或签名 URL 转换为公开 URL 的辅助方法。
+ */
 import cn.hutool.crypto.digest.DigestUtil;
 import com.volcengine.tos.comm.HttpMethod;
 import com.volcengine.tos.TOSClientConfiguration;

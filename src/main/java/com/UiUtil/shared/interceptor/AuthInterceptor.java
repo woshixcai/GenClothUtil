@@ -1,5 +1,9 @@
 package com.UiUtil.shared.interceptor;
 
+/**
+ * 认证拦截器：校验请求头中的 JWT Token，加载用户信息和权限列表写入 UserContext，
+ * 并对标注了 @RequirePermission 的方法进行细粒度权限校验，无权限则返回 403。
+ */
 import com.UiUtil.shared.annotation.RequirePermission;
 import com.UiUtil.shared.result.ApiResult;
 import com.UiUtil.shared.context.UserContext;

@@ -1,5 +1,8 @@
 package com.UiUtil.config;
 
+/**
+ * MVC 全局配置：注册认证拦截器（AuthInterceptor），并放行静态资源、登录注册等白名单路径。
+ */
 import com.UiUtil.shared.interceptor.AuthInterceptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;

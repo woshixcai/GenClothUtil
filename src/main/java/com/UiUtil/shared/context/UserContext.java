@@ -1,5 +1,9 @@
 package com.UiUtil.shared.context;
 
+/**
+ * 用户上下文工具类，通过 ThreadLocal 在整个请求链路中传递当前登录用户的 ID、用户名、权限列表、
+ * 店铺 ID 及进价可见权限等信息。请求结束后由拦截器负责清理，防止内存泄漏。
+ */
 import lombok.Data;
 
 import java.util.List;

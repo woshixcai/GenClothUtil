@@ -1,5 +1,8 @@
 package com.UiUtil.inventory.mapper;
 
+/**
+ * 服装图片数据访问层，支持按商品 ID 批量查询图片记录。
+ */
 import com.UiUtil.inventory.entity.ClothImage;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;

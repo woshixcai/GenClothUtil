@@ -1,5 +1,8 @@
 package com.UiUtil.controller;
 
+/**
+ * 穿搭生图接口：提供换装图片生成任务的提交和状态轮询（主要面向早期测试和集成调试）。
+ */
 import com.UiUtil.shared.result.HuoShanResult;
 import com.UiUtil.shared.annotation.RequirePermission;
 import com.UiUtil.service.GenImageService;

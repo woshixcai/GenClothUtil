@@ -1,5 +1,8 @@
 package com.UiUtil.auth.service;
 
+/**
+ * 每日生图配额服务：检查当前用户是否有 AI 生图权限及剩余次数，并在生图前原子扣减配额。
+ */
 import com.UiUtil.auth.entity.SysUser;
 import com.UiUtil.auth.mapper.SysUserMapper;
 import org.springframework.beans.factory.annotation.Autowired;

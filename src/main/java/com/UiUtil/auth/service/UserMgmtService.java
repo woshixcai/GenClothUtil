@@ -1,5 +1,8 @@
 package com.UiUtil.auth.service;
 
+/**
+ * 用户管理服务：创建/查询店铺管理员（自动生成店铺编号）和子账号，管理配额、AI权限，并提供月度 Token 用量汇总。
+ */
 import cn.hutool.crypto.digest.BCrypt;
 import com.UiUtil.auth.entity.*;
 import com.UiUtil.auth.mapper.*;
@@ -122,5 +125,19 @@ public class UserMgmtService {
 
     public List<Map<String, Object>> usageSummaryByUser(Long shopId) {
         return usageLogMapper.sumByUserInShop(shopId);
+    }
+
+    /**
+     * 超管：按店铺 + 月度统计 token 用量（每个月会是独立记录）。
+     */
+    public List<Map<String, Object>> usageMonthlySummaryByShop() {
+        return usageLogMapper.sumMonthlyByShop();
+    }
+
+    /**
+     * 超管：按店铺 + 用户 + 月度统计 token 用量（每个月会是独立记录）。
+     */
+    public List<Map<String, Object>> usageMonthlySummaryByUser(Long shopId) {
+        return usageLogMapper.sumMonthlyByUserInShop(shopId);
     }
 }

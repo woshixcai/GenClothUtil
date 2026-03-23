@@ -1,5 +1,8 @@
 package com.UiUtil.auth.service;
 
+/**
+ * Token 使用日志记录服务，在每次调用大模型后异步写入 usage_log 表，关联当前用户和所属店铺。
+ */
 import com.UiUtil.auth.entity.UsageLog;
 import com.UiUtil.auth.mapper.SysUserMapper;
 import com.UiUtil.auth.mapper.UsageLogMapper;

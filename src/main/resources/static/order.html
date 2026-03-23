@@ -36,7 +36,7 @@
       position:fixed; bottom:68px; left:0; right:0;
       background:var(--bg-card); border-top:1.5px solid var(--border);
       padding:10px 16px; display:flex; align-items:center; gap:12px;
-      box-shadow:0 -4px 12px rgba(0,0,0,.06); z-index:100;
+      box-shadow:0 -4px 12px rgba(0,0,0,.06); z-index:220;
       transition: transform .2s;
     }
     .cart-bar.empty { transform: translateY(100%); }
@@ -71,6 +71,19 @@
     .qty-val { font-size:14px; font-weight:600; min-width:20px; text-align:center; }
     .cart-line-price { font-size:13px; color:var(--accent); font-weight:600; margin-left:6px; }
     .cart-line-del   { font-size:18px; color:var(--text-3); cursor:pointer; padding:0 4px; }
+
+    /* 购物车内提交按钮（避免底栏遮挡/不易发现） */
+    .cart-submit-wrap {
+      margin-top: 14px;
+      position: sticky;
+      bottom: 0;
+      background: var(--bg-card);
+      padding-top: 12px;
+    }
+    .cart-submit-wrap .submit-cart {
+      width: 100%;
+      text-align: center;
+    }
 
     /* SKU 选择弹层 */
     .sku-sheet   {
@@ -141,6 +154,9 @@
     <span class="sheet-close" onclick="closeCart()">×</span>
   </div>
   <div id="cartLines"></div>
+  <div class="cart-submit-wrap">
+    <div class="submit-cart" onclick="submitOrder()">提交订单</div>
+  </div>
 </div>
 
 <!-- SKU 选择弹层 -->
@@ -154,14 +170,20 @@
 
 <nav class="bottom-nav">
   <a class="bnav-item" href="index.html"><span class="bnav-icon">🏠</span><span class="bnav-label">换装</span></a>
-  <a class="bnav-item" href="inventory.html"><span class="bnav-icon">📦</span><span class="bnav-label">服装库</span></a>
-  <a class="bnav-item bnav-add" href="add-item.html"><span class="bnav-icon">＋</span><span class="bnav-label">入库</span></a>
-  <a class="bnav-item active" href="order.html"><span class="bnav-icon">🧾</span><span class="bnav-label">开单</span></a>
-  <a class="bnav-item" href="order-list.html"><span class="bnav-icon">📊</span><span class="bnav-label">订单</span></a>
+  <a class="bnav-item active" href="ops.html"><span class="bnav-icon">🧾</span><span class="bnav-label">进销存</span></a>
+  <a class="bnav-item" href="admin.html" id="adminNavItem" style="display:none"><span class="bnav-icon">⚙️</span><span class="bnav-label">系统管理</span></a>
 </nav>
 
 <script>
 const getToken = () => localStorage.getItem('sm_token') || '';
+
+// 系统管理导航显隐（仅管理员）
+(function() {
+  const perms = JSON.parse(localStorage.getItem('sm_perms') || '[]');
+  const show  = perms.includes('sys:manage') || perms.includes('user:shop_manage');
+  const nav   = document.getElementById('adminNavItem');
+  if (nav) nav.style.display = show ? '' : 'none';
+})();
 
 let toastTimer;
 const showToast = (msg, dur = 3000, type = 'error') => {
@@ -273,25 +295,30 @@ function pickSku(skuId) {
 }
 
 /* ── 购物车操作 ──────────────────────────────── */
-function addToCart(item, sku) {
+function addToCart(item, sku, qty = 1) {
   const label = [sku.color, sku.size].filter(Boolean).join('/') || '默认规格';
+  const max = sku.stockQty == null ? 0 : sku.stockQty;
+  const add = Math.max(1, parseInt(qty, 10) || 1);
   const existing = cart.find(c => c.skuId === sku.id);
   if (existing) {
-    if (existing.qty >= sku.stockQty) { showToast('已达库存上限'); return; }
-    existing.qty++;
+    const next = Math.min(max, existing.qty + add);
+    if (next <= existing.qty) { showToast('已达库存上限'); return; }
+    existing.qty = next;
   } else {
+    const q0 = Math.min(add, max);
+    if (q0 < 1) { showToast('库存不足'); return; }
     cart.push({
       skuId:     sku.id,
       itemId:    item.id,
       itemName:  item.itemName,
       skuDesc:   label,
-      qty:       1,
+      qty:       q0,
       unitPrice: item.salePrice,
-      maxStock:  sku.stockQty
+      maxStock:  max
     });
   }
   updateCartBar();
-  showToast('已加入', 1200, 'ok');
+  if (add === 1) showToast('已加入', 1200, 'ok');
 }
 
 function updateCartBar() {
@@ -394,10 +421,43 @@ document.getElementById('catTabs').addEventListener('click', e => {
   renderList();
 });
 
+/* ── 从服装库「批量开单」预填购物车 ───────────────── */
+async function applyOrderPrefill() {
+  const sp = new URLSearchParams(location.search);
+  if (sp.get('fromBatch') !== '1') return;
+  const raw = sessionStorage.getItem('sm_order_prefill');
+  if (raw) sessionStorage.removeItem('sm_order_prefill');
+  if (!raw) return;
+  let lines;
+  try { lines = JSON.parse(raw); } catch (e) { return; }
+  if (!Array.isArray(lines) || !lines.length) return;
+
+  for (const line of lines) {
+    const itemId = Number(line.itemId);
+    const skuId = Number(line.skuId);
+    let qty = Math.max(1, parseInt(line.qty, 10) || 1);
+    const item = allItems.find(i => i.id === itemId);
+    if (!item) continue;
+    const skus = await loadSkus(itemId);
+    const sku = skus.find(s => s.id === skuId);
+    if (!sku) continue;
+    const max = sku.stockQty == null ? 0 : sku.stockQty;
+    qty = Math.min(qty, max);
+    if (qty < 1) continue;
+    addToCart(item, sku, qty);
+  }
+  updateCartBar();
+  if (cart.length) {
+    showToast('已从服装库带入 ' + cart.length + ' 条明细', 2200, 'ok');
+    try { history.replaceState(null, '', 'order.html'); } catch (e) {}
+  }
+}
+
 /* ── 初始化 ───────────────────────────────────── */
-(function init() {
+(async function init() {
   if (!getToken()) { location.href = 'index.html'; return; }
-  loadItems();
+  await loadItems();
+  await applyOrderPrefill();
 })();
 </script>
 </body>

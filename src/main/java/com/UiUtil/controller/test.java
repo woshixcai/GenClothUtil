@@ -1,5 +1,8 @@
 package com.UiUtil.controller;
 
+/**
+ * DashScope API 调用测试类，仅用于本地调试验证大模型连通性，非生产业务类。
+ */
 import java.util.Arrays;
 import java.lang.System;
 import com.alibaba.dashscope.aigc.generation.Generation;

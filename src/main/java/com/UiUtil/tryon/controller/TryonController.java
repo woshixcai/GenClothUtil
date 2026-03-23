@@ -1,5 +1,9 @@
 package com.UiUtil.tryon.controller;
 
+/**
+ * 换装接口：提交生图任务（异步，返回 taskId）、轮询任务状态、提交用户反馈，
+ * 以及查询当前用户的换装历史记录。
+ */
 import com.UiUtil.shared.annotation.RequirePermission;
 import com.UiUtil.shared.result.ApiResult;
 import com.UiUtil.tryon.service.FeedbackService;

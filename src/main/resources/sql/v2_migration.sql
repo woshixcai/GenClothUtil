@@ -213,6 +213,7 @@ CREATE TABLE IF NOT EXISTS cloth_order (
 CREATE TABLE IF NOT EXISTS cloth_order_item (
     id         BIGINT        PRIMARY KEY AUTO_INCREMENT,
     order_id   BIGINT        NOT NULL,
+    shop_id    BIGINT        DEFAULT NULL COMMENT '所属店铺',
     item_id    BIGINT        NOT NULL,
     sku_id     BIGINT        NOT NULL,
     item_name  VARCHAR(100)  DEFAULT NULL COMMENT '商品名快照',
@@ -222,6 +223,15 @@ CREATE TABLE IF NOT EXISTS cloth_order_item (
     cost_price DECIMAL(10,2) DEFAULT NULL COMMENT '进价快照',
     INDEX idx_order (order_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='订单明细';
+
+-- 兼容已存在表：给 cloth_order_item 补齐 shop_id 列
+CALL _add_col('cloth_order_item', 'shop_id', 'BIGINT DEFAULT NULL COMMENT ''所属店铺''');
+
+-- 回填历史数据：shop_id = cloth_order.shop_id
+UPDATE cloth_order_item toi
+JOIN cloth_order o ON toi.order_id = o.id
+SET toi.shop_id = o.shop_id
+WHERE toi.shop_id IS NULL;
 
 -- sys_user 新增 AI 生图权限字段
 CALL _add_col('sys_user', 'can_use_ai', 'TINYINT DEFAULT 1 COMMENT ''是否可用AI生图：1=是 0=否''');

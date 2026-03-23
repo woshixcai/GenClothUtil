@@ -1,5 +1,8 @@
 package com.UiUtil.auth.entity;
 
+/**
+ * 店铺实体，对应 sys_shop 表，创建 SHOP_ADMIN 账号时自动生成并绑定。
+ */
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 import java.util.Date;
